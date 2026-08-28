@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
+.vite/
+
+# Cloudflare / Wrangler local state and secrets
+.wrangler/
+.dev.vars
+.env
+.env.*
+
+# Source and derived databases are not source code.
+# The master .db never enters this repository; neither does a published extract.
+*.db
+*.sqlite
+*.sqlite3
+!tests/fixtures/*.db
+
+# Generated publish output (pages, search shards, sitemaps) is built, not committed.
+/public/dog/
+/public/s/
+/public/sitemap*.xml
+
+# Private AI/dev guidance — kept at repo root so Claude Code auto-loads it locally,
+# but never published. (If already tracked: git rm --cached CLAUDE.md)
+CLAUDE.md

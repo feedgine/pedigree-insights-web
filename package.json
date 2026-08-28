@@ -1,0 +1,12 @@
+{
+  "name": "pedigree-insights-web",
+  "version": "0.1.0",
+  "description": "Web edition of PedigreeInsights: a public, search-indexed catalogue of the Japanese Spitz Foundation pedigree database, plus a signed-in member area carrying the same analysis reports. Read-only mirror of a BreedMate-compatible SQLite master.",
+  "author": "Yuliya Malinina <julia.malinina@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "//": "Toolchain is chosen in P0; scripts are added with it."
+  }
+}
