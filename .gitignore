@@ -24,6 +24,10 @@ coverage/
 /public/s/
 /public/sitemap*.xml
 
+# Vitest rewrites its config to a timestamped file while running; this environment
+# cannot delete, so the stubs are ignored rather than cleaned up.
+vitest.config.ts.timestamp-*.mjs
+
 # Private AI/dev guidance — kept at repo root so Claude Code auto-loads it locally,
 # but never published. (If already tracked: git rm --cached CLAUDE.md)
 CLAUDE.md

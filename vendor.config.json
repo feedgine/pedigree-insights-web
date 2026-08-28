@@ -1,0 +1,14 @@
+{
+  "$comment": "Pure modules vendored from the sibling pedigree-insights repository. Do not edit the copies; edit them there and re-run `npm run vendor:sync`. `npm run vendor:check` fails if the copies have drifted, so divergence can never be silent.",
+  "source": "../pedigree-insights",
+  "sourceSubdir": "src/lib",
+  "target": "src/vendor/pedigree-insights",
+  "pinnedCommit": null,
+  "files": [
+    "schema.ts",
+    "sourceFields.ts",
+    "pedigreeAlgorithm.ts",
+    "genetics.ts",
+    "queries.ts"
+  ]
+}

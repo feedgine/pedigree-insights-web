@@ -6,7 +6,25 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "//": "Toolchain is chosen in P0; scripts are added with it."
+    "vendor:sync": "node tools/vendor-lib.mjs",
+    "vendor:check": "node tools/vendor-lib.mjs --check",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run vendor:check && vitest run",
+    "test:watch": "vitest",
+    "publish:extract": "tsx src/publish/index.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   }
 }

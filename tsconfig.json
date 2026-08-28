@@ -1,0 +1,32 @@
+{
+  "//": [
+    "Compiler settings are deliberately aligned with pedigree-insights, because src/vendor/",
+    "holds verbatim copies of its modules and they must typecheck here exactly as they do",
+    "there. A stricter flag on this side would force edits to vendored files — which is the",
+    "drift the vendoring exists to prevent. If a flag is worth adding, add it in",
+    "pedigree-insights first, fix the source, then re-sync.",
+    "Differences from the source config are only those that follow from this being a Node",
+    "and Workers project rather than an Electron/React one: no DOM lib, no jsx."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src", "tests", "vitest.config.ts"]
+}
