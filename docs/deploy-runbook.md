@@ -19,19 +19,49 @@ npm run typecheck
 `npm install` now brings in `wrangler` and `@cloudflare/workers-types`. `npm test` must be
 green before anything is deployed — the code is `[DRAFT]` until it passes on this machine.
 
+## 0b. Record the identifiers as you go
+
+```
+cp deploy.env.example deploy.local.env
+```
+
+Fill each value in as the command that produces it runs. `deploy.local.env` is git-ignored
+and holds **identifiers only** — no credentials; wrangler and rclone each keep their own.
+Sourcing it makes the rest of this runbook copy-pasteable:
+
+```
+source deploy.local.env
+```
+
+Every command below can then be written once and reused, which matters most for the ones
+that are run again every month.
+
 ## 1. Sign in to Cloudflare
 
 ```
 npx wrangler login
+npx wrangler whoami
 ```
 
-Opens a browser and authorises the CLI against your account. Nothing is created yet.
+Opens a browser, authorises the CLI, and creates nothing. `whoami` then prints the account
+everything will be created in, and the scopes the token carries.
+
+**Check that `r2 (write)` is in that scope list.** Wrangler 3 does not request R2
+permission at all — its token can create a database and deploy a project but will be
+refused a bucket, and the error names a permission rather than the version, which is a
+slow thing to work out. `package.json` therefore requires wrangler 4. If the list is
+missing `r2`, the token predates the upgrade:
+
+```
+npx wrangler logout
+npx wrangler login
+```
 
 ## 2. Create the two stores
 
 ```
-npx wrangler r2 bucket create pedigree-payloads
-npx wrangler d1 create pedigree
+npx wrangler r2 bucket create "$R2_BUCKET"
+npx wrangler d1 create "$D1_NAME"
 ```
 
 `d1 create` prints a `database_id`. **Paste it into `wrangler.toml`**, replacing
@@ -41,7 +71,7 @@ none at all.
 Then create the schema:
 
 ```
-npx wrangler d1 execute pedigree --remote --file=migrations/0001_initial.sql
+npx wrangler d1 execute "$D1_NAME" --remote --file=migrations/0001_initial.sql
 ```
 
 `--remote` matters. Without it wrangler writes to a local emulated database and the site
@@ -64,22 +94,27 @@ rclone config
 
 Answer: `n` (new remote) · name `r2` · storage `s3` · provider `Cloudflare` ·
 `env_auth` false · your access key and secret · region `auto` · endpoint
-`https://<ACCOUNT_ID>.r2.cloudflarestorage.com` · leave the rest empty.
+`$R2_ENDPOINT` (echo it if you need the literal value) · leave the rest empty.
 
-Check it:
+Check it — and note **the trailing colon**, which is what makes `r2:` a remote rather
+than a local folder called `r2`:
 
 ```
-rclone lsd r2:
+rclone ls "r2:$R2_BUCKET"
 ```
 
-It should list `pedigree-payloads`.
+**No output is success**: the bucket exists, the credentials work, and it is empty.
+
+Do NOT check with `rclone lsd r2:`. That asks to list every bucket on the account, which a
+token scoped to one bucket is correctly refused — a 403 `AccessDenied` that looks like
+broken credentials and is in fact the scoping working.
 
 ## 4. Build everything from the master
 
 ```
-npm run publish:extract -- --source "<path to japanesespitz-2026-master.db>" --out out --state publish-state/state.json
-npm run render:site -- --payloads out --out site --include indexed --clean
-npm run publish:d1 -- --payloads out --state publish-state/state.json --out out/d1/seed.sql
+npm run publish:extract -- --source "$MASTER_DB" --out "$PAYLOAD_DIR" --state "$PUBLISH_STATE"
+npm run render:site -- --payloads "$PAYLOAD_DIR" --out "$SITE_DIR" --include indexed --clean
+npm run publish:d1 -- --payloads "$PAYLOAD_DIR" --state "$PUBLISH_STATE" --out "$PAYLOAD_DIR/d1/seed.sql"
 ```
 
 Three outputs, three destinations:
@@ -96,19 +131,24 @@ synthetic identifiers for the dogs without registrations and can move their link
 ## 5. Load the data
 
 ```
-rclone sync out/dog r2:pedigree-payloads/dog --transfers 32 --checkers 32 --progress
-npx wrangler d1 execute pedigree --remote --file=out/d1/seed.sql
+rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
 
 The first sync uploads about 395 MB and takes a while. Later ones send only what changed.
 
 `--transfers 32` is worth the flag: the default of 4 turns a ten-minute upload into an
-hour.
+hour. Measured on the first real run: **62,469 objects, 322.7 MiB, 10m25s.**
+
+`--exclude ".DS_Store"` keeps macOS's directory-metadata files out of the bucket. They are
+harmless but they are also permanent — nothing ever deletes them, and `sync` re-uploads
+each one every time Finder touches a folder.
 
 ## 6. Deploy
 
 ```
-npx wrangler pages deploy site --project-name pedigree-insights-web
+npx wrangler pages deploy "$SITE_DIR" --project-name "$PAGES_PROJECT"
 ```
 
 The first run offers to create the project — accept, and choose **Direct Upload**. It
@@ -138,7 +178,7 @@ the indexed ones work — which is a useful symptom to recognise.
 1. Dashboard → the Pages project → **Custom domains → Set up a domain** →
    `pedigree.japanesespitz.org`. Cloudflare will show the CNAME target it wants.
 2. **Only then**, at GoDaddy, add one record: `CNAME` · host `pedigree` · value
-   `pedigree-insights-web.pages.dev`.
+   `$PAGES_PROJECT.pages.dev`.
 3. Back in the dashboard, wait for the domain to go **Active**. Certificates take a few
    minutes.
 

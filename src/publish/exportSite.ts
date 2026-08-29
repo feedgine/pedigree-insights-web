@@ -72,16 +72,44 @@ function payloadFiles(dir: string): string[] {
 }
 
 /**
- * Rows are written in batches rather than one INSERT each.
- *
- * 62,469 single-row statements is a file D1 chews through slowly and a transaction log it
- * does not need. Batching by 500 keeps each statement well inside SQLite's limits while
- * cutting the statement count by the same factor.
+ * D1 refuses any single SQL statement longer than 100,000 bytes.
+ * <https://developers.cloudflare.com/d1/platform/limits/>
  */
-function batched(rows: readonly string[], into: string[], prefix: string, size = 500): void {
-  for (let i = 0; i < rows.length; i += size) {
-    into.push(`${prefix}\n${rows.slice(i, i + size).join(',\n')};`);
+const D1_MAX_STATEMENT_BYTES = 100_000;
+
+/** Two thirds of the limit, so an unusually long row cannot tip a batch over it. */
+const STATEMENT_BUDGET = Math.floor((D1_MAX_STATEMENT_BYTES * 2) / 3);
+
+/**
+ * Rows are written in batches rather than one INSERT each — 62,469 single-row statements
+ * is a file D1 chews through slowly for no benefit.
+ *
+ * Batches are sized by **bytes, not by row count**. A row count is a proxy for length, and
+ * a proxy that fails exactly when the data gets interesting: 500 rows of ordinary Finnish
+ * kennel names fit comfortably, 500 rows carrying long titles and registration codes do
+ * not, and the failure arrives as `SQLITE_TOOBIG` from the server after the whole file has
+ * been uploaded. Measuring the thing the limit actually measures costs nothing.
+ */
+function batched(rows: readonly string[], into: string[], prefix: string): void {
+  let batch: string[] = [];
+  let bytes = Buffer.byteLength(prefix);
+
+  const flush = () => {
+    if (batch.length === 0) return;
+    into.push(`${prefix}\n${batch.join(',\n')};`);
+    batch = [];
+    bytes = Buffer.byteLength(prefix);
+  };
+
+  for (const row of rows) {
+    const size = Buffer.byteLength(row) + 2; // the comma and the newline that join it
+    // A single row over the budget still gets its own statement: it is the smallest
+    // thing that can be sent, and splitting it is not this function's business.
+    if (batch.length > 0 && bytes + size > STATEMENT_BUDGET) flush();
+    batch.push(row);
+    bytes += size;
   }
+  flush();
 }
 
 function main(): void {

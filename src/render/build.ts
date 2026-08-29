@@ -30,7 +30,7 @@ import { dirname, join } from 'node:path';
 
 import type { DogPayload } from '../publish/payload';
 import { renderDogPage } from './dogPage';
-import { llmsTxt, renderHome, robotsTxt, routesJson, sitemapXml } from './home';
+import { llmsTxt, renderHome, renderNotFound, robotsTxt, routesJson, sitemapXml } from './home';
 import { SITE_CSS } from './styles';
 
 interface Options {
@@ -187,6 +187,9 @@ function main(): void {
     publishedAt: new Date().toISOString(),
   };
   writeFile(join(opts.out, 'index.html'), renderHome(stats));
+  // Not optional: without it Pages answers a missing asset with the home page at status
+  // 200, and the Function that serves the dynamic tier cannot tell a miss from a hit.
+  writeFile(join(opts.out, '404.html'), renderNotFound());
   writeFile(join(opts.out, 'robots.txt'), robotsTxt());
   writeFile(join(opts.out, 'llms.txt'), llmsTxt(stats));
   writeFile(join(opts.out, '_routes.json'), routesJson());

@@ -24,17 +24,23 @@ bucket_name = "pedigree-payloads"
 [[d1_databases]]
 binding = "DB"
 database_name = "pedigree"
-# Filled in by `wrangler d1 create pedigree` — paste the id it prints.
-database_id = "REPLACE_WITH_DATABASE_ID"
+# From `wrangler d1 create pedigree`, 2026-08-29. Created in region EEUR — D1 pins a
+# database to one region at creation and it cannot be moved, so this is the choice.
+# Not a secret: reaching the database still requires an authenticated account, and
+# Cloudflare's own documentation keeps this id in committed configuration.
+database_id = "6b3e3322-3a69-41f9-a2c8-5c60b7fbec5c"
 
-# The preview environment points at the same schema but its own data, so a trial import
-# can never overwrite what the site is serving.
-[env.preview]
-[[env.preview.r2_buckets]]
-binding = "PAYLOADS"
-bucket_name = "pedigree-payloads-preview"
-
-[[env.preview.d1_databases]]
-binding = "DB"
-database_name = "pedigree-preview"
-database_id = "REPLACE_WITH_PREVIEW_DATABASE_ID"
+# A preview environment would point at the same schema with its own data, so a trial
+# import could never overwrite what the site is serving. Left commented out until it is
+# actually wanted: wrangler validates every environment it finds, and a placeholder id
+# here fails the production deploy too.
+#
+# [env.preview]
+# [[env.preview.r2_buckets]]
+# binding = "PAYLOADS"
+# bucket_name = "pedigree-payloads-preview"
+#
+# [[env.preview.d1_databases]]
+# binding = "DB"
+# database_name = "pedigree-preview"
+# database_id = "<from wrangler d1 create pedigree-preview>"

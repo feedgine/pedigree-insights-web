@@ -19,6 +19,7 @@
 import { payloadKey } from '../../src/publish/constants';
 import type { DogPayload } from '../../src/publish/payload';
 import { renderDogPage } from '../../src/render/dogPage';
+import { renderNotFound } from '../../src/render/home';
 import { SITE } from '../../src/render/site';
 
 interface Env {
@@ -40,15 +41,23 @@ interface Env {
 const CACHE_CONTROL = 'public, max-age=300, s-maxage=86400';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const notFound = () =>
+    new Response(renderNotFound(SITE), {
+      status: 404,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    });
+
   const slug = String(context.params.slug ?? '');
-  if (slug === '' || !/^[a-z0-9-]+$/.test(slug)) {
-    return new Response('Not found', { status: 404 });
-  }
+  if (slug === '' || !/^[a-z0-9-]+$/.test(slug)) return notFound();
 
   // Ask for the static file first. The indexed tier is written as files by the build, and
-  // where one exists it is the answer: no R2 read, no render, no Function cost. Doing it
-  // this way rather than by listing routes keeps the two tiers independent — 3,459 paths
-  // could not be expressed in `_routes.json` anyway, which allows 100 rules.
+  // where one exists it is the answer: no R2 read, no render. Doing it this way rather
+  // than by listing routes keeps the two tiers independent — 3,459 paths could not be
+  // expressed in `_routes.json` anyway, which allows 100 rules.
+  //
+  // This depends on the build emitting `404.html`. Without it Pages answers a missing
+  // asset with the ROOT index.html at status 200, every unindexed dog is served the home
+  // page, and nothing reports an error anywhere. Found the hard way, 2026-08-29.
   const asset = await context.next();
   if (asset.status !== 404) return asset;
 
@@ -66,10 +75,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (row?.new_slug) {
       return Response.redirect(new URL(`/dog/${row.new_slug}`, context.request.url).toString(), 301);
     }
-    return new Response('Not found', {
-      status: 404,
-      headers: { 'content-type': 'text/plain; charset=utf-8' },
-    });
+    return notFound();
   }
 
   const payload = (await object.json()) as DogPayload;

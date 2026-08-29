@@ -89,6 +89,43 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
 }
 
 /**
+ * The not-found page — and the reason the site cannot do without one.
+ *
+ * Cloudflare Pages, asked for a path that matches no static file, serves the root
+ * `index.html` **with status 200** unless a `404.html` exists. That makes "no such asset"
+ * indistinguishable from "here is your page" to anything downstream — including the
+ * Function that serves the dynamic tier, which asks for the static asset first and reads
+ * the status to decide whether to look in R2. Without this file every unindexed dog is
+ * answered with the home page, and nothing anywhere reports an error.
+ *
+ * So this is not decoration. It is the signal the routing depends on.
+ */
+export function renderNotFound(site: SiteConfig = SITE): string {
+  return renderPage(
+    {
+      title: `Not found — ${site.name}`,
+      canonical: `${site.origin}/404`,
+      noindex: true,
+      crumbs: [{ label: 'Home', href: '/' }, { label: 'Not found' }],
+    },
+    [
+      '<div class="subject">',
+      '<h1>Not found</h1>',
+      '</div>',
+      '<section>',
+      '<p class="note">There is no page at this address. The dog may have been recorded ' +
+        'under a different spelling of its name — try searching for part of it in the box ' +
+        'above, where accents are optional.</p>',
+      `<p class="note">If a dog is missing from the catalogue altogether, ` +
+        `<a href="${esc(site.correctionFormUrl)}">send a correction</a> — accepted ` +
+        'additions go into the source database and appear here at the next publish.</p>',
+      '</section>',
+    ].join('\n'),
+    site,
+  );
+}
+
+/**
  * `robots.txt` — the ONLY crawler control this setup has.
  *
  * Without a Cloudflare zone there are no cache rules, no WAF and no managed crawler

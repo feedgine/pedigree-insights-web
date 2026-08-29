@@ -39,3 +39,8 @@ CLAUDE.md
 /publish-state/
 /out/
 /site/
+
+# Deployment identifiers for one machine — account id, database id, bucket, local paths.
+# Not secrets (Cloudflare auth is still required to reach any of it), but machine-specific
+# and not worth publishing. The committed template is deploy.env.example.
+deploy.local.env
