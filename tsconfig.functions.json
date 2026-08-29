@@ -1,0 +1,15 @@
+{
+  "//": [
+    "Pages Functions run in the Workers runtime, not in Node, so they need a different set",
+    "of ambient types from the publish pipeline. They are typechecked in their own pass",
+    "rather than by widening the main config: the publish code legitimately uses node:crypto",
+    "and node:fs, and a single program claiming to be both runtimes at once would let a Node",
+    "API slip into a Worker unnoticed. Both type sets are loaded here because the Functions",
+    "import pure modules that the Node pass also compiles."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "@cloudflare/workers-types"]
+  },
+  "include": ["functions", "src"]
+}

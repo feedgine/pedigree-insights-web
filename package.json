@@ -10,21 +10,26 @@
     "node": ">=20"
   },
   "scripts": {
-    "vendor:sync": "node tools/vendor-lib.mjs",
-    "vendor:check": "node tools/vendor-lib.mjs --check",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "publish:d1": "tsx src/publish/exportSite.ts",
+    "publish:extract": "tsx src/publish/index.ts",
+    "render:site": "tsx src/render/build.ts",
     "test": "npm run vendor:check && vitest run",
     "test:watch": "vitest",
-    "publish:extract": "tsx src/publish/index.ts"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.functions.json",
+    "typecheck:functions": "tsc --noEmit -p tsconfig.functions.json",
+    "vendor:check": "node tools/vendor-lib.mjs --check",
+    "vendor:sync": "node tools/vendor-lib.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0"
   }
 }

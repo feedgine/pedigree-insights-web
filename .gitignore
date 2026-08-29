@@ -31,3 +31,11 @@ vitest.config.ts.timestamp-*.mjs
 # Private AI/dev guidance — kept at repo root so Claude Code auto-loads it locally,
 # but never published. (If already tracked: git rm --cached CLAUDE.md)
 CLAUDE.md
+
+# Publish state and output. The state file holds the URL every dog was published under
+# (slug assignments, synthetic ids, redirects) and the payload hashes that make a publish
+# incremental. It is not a cache: it belongs in the owner's backed-up storage beside the
+# master, never in this repository — it is derived from the database and lists every dog.
+/publish-state/
+/out/
+/site/

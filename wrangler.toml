@@ -1,0 +1,40 @@
+# Cloudflare Pages configuration.
+#
+# Pages, not Workers, for one decisive reason recorded during discovery: Pages is the only
+# Cloudflare product that will serve a custom SUBDOMAIN while the zone's nameservers stay
+# with the existing registrar. The club's DNS stays at GoDaddy and one CNAME is added.
+#
+# Two bindings, and the split between them is deliberate:
+#   PAYLOADS (R2) — one JSON payload per dog, fetched by key, never searched. 394.6 MB of
+#     them, against a 10 GB free tier, so they are stored as plain JSON: no compression
+#     step, and therefore no decompression on every request.
+#   DB (D1) — only what has to be QUERIED: the dog index behind search and the hubs, the
+#     redirect table, DNA results. About 8 MB against a 500 MB free limit.
+#
+# @author Yuliya Malinina <julia.malinina@gmail.com>
+
+name = "pedigree-insights-web"
+compatibility_date = "2026-08-28"
+pages_build_output_dir = "site"
+
+[[r2_buckets]]
+binding = "PAYLOADS"
+bucket_name = "pedigree-payloads"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pedigree"
+# Filled in by `wrangler d1 create pedigree` — paste the id it prints.
+database_id = "REPLACE_WITH_DATABASE_ID"
+
+# The preview environment points at the same schema but its own data, so a trial import
+# can never overwrite what the site is serving.
+[env.preview]
+[[env.preview.r2_buckets]]
+binding = "PAYLOADS"
+bucket_name = "pedigree-payloads-preview"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "pedigree-preview"
+database_id = "REPLACE_WITH_PREVIEW_DATABASE_ID"
