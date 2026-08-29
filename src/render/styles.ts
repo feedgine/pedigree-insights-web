@@ -25,7 +25,6 @@ const BASE_CSS = `
   --rule: #d9d6d0;
   --accent: #1f5c8b;
   --accent-soft: #eaf1f7;
-  --measure: 74ch;
   --radius: 3px;
 }
 
@@ -153,7 +152,7 @@ const SECTION_CSS = `
 /* ---- sections ----------------------------------------------------------- */
 section { padding: 26px 0; border-bottom: 1px solid var(--rule); }
 section > h2 { font-size: 18px; margin: 0 0 4px; font-weight: 600; }
-section > .note { font-size: 13px; color: var(--ink-faint); margin: 0 0 14px; max-width: var(--measure); }
+section > .note { font-size: 13px; color: var(--ink-faint); margin: 0 0 14px; }
 
 .litter { margin: 0 0 18px; }
 .litter h3 { font-size: 14px; font-weight: 600; margin: 0 0 6px; color: var(--ink-soft); }
@@ -168,6 +167,14 @@ ul.chips li a, ul.chips li span {
   border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-soft);
   text-decoration: none; color: var(--ink);
 }
+/* A list that reads as prose: same voice as .note, but each item is its own thing. */
+ul.plain { list-style: none; margin: 0 0 14px; padding: 0; font-size: 13px; color: var(--ink-faint); }
+ul.plain li { margin: 0 0 8px; }
+
+.pager { display: flex; align-items: center; gap: 18px; margin: 20px 0 0; font-size: 14px; }
+.pager span { color: var(--ink-faint); }
+.pager .pager-where { margin-left: auto; margin-right: auto; }
+
 table.dna { border-collapse: collapse; font-size: 15px; }
 table.dna th, table.dna td { text-align: left; padding: 4px 22px 4px 0; border-bottom: 1px solid var(--rule); }
 table.dna th { font-weight: 500; color: var(--ink-faint); }

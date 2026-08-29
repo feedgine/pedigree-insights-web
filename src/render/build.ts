@@ -178,6 +178,30 @@ function main(): void {
   // A plain list of what was built: paste a path after localhost to open it.
   writeFile(join(opts.out, 'pages.txt'), `${pages.sort().join('\n')}\n`);
 
+  // The publish date, written as a source file so the Functions bundle carries the same
+  // value the static pages do. Written BEFORE the pages, so a build always stamps them
+  // with the date of that build rather than the one before it.
+  writeFile(
+    'src/generated/published.ts',
+    [
+      '/**',
+      ' * When the catalogue was last published. **Generated — do not edit by hand.**',
+      ' *',
+      ' * Written by `npm run render:site` on every build, and committed, for two reasons.',
+      ' * The footer states it on every page, which answers the question a contributor asks',
+      ' * first — "I sent a correction, why is it not here?" — before they have to ask it.',
+      ' * And the dynamic tier needs the same value as the static tier: baking it into the',
+      ' * Functions bundle at build time costs nothing at request time, where reading it',
+      ' * from D1 would be an extra query on every page view of 59,010 dogs.',
+      ' *',
+      ' * Committed rather than git-ignored so a fresh clone typechecks, and so the history',
+      ' * carries a record of when each publish actually happened.',
+      ' */',
+      `export const PUBLISHED_AT = '${new Date().toISOString().slice(0, 10)}';`,
+      '',
+    ].join('\n'),
+  );
+
   // The site's furniture. Written by the build rather than kept as checked-in files,
   // because every one of them states a number or a date the build is the only thing that
   // knows: how many dogs there are, how many are indexed, when the publish ran.

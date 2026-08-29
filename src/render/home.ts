@@ -56,18 +56,70 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
     '<section>',
     '<h2>Find a dog</h2>',
     '<p class="note">Search by name in the box above. Accents are optional — ' +
-      '<em>lumivyoryn</em> finds <em>LUMIVYÖRYN</em>, and the other way round.</p>',
+      '<em>tahtihovin</em> finds <em>TÄHTIHOVIN</em>, and the other way round.</p>',
     '</section>',
+    // Deliberately NOT an "about this catalogue" section. The footer already carries the
+    // licence, the correction route and the privacy position on every page (R-2.7), so
+    // repeating them here says the same three things twice within one screen. What a
+    // visitor cannot learn from the footer is what they get by clicking through.
     '<section>',
-    '<h2>About this catalogue</h2>',
-    `<p class="note">Every dog in the database has a page. The records come from the ` +
-      `${esc(site.publisher)} pedigree database and are published under ` +
-      `<a href="${esc(site.dataLicenceUrl)}" rel="license">${esc(site.dataLicence)}</a>. ` +
-      'This catalogue publishes facts about dogs: owners, microchip numbers and litter ' +
-      'records are not published.</p>',
-    `<p class="note">Something wrong or missing? ` +
-      `<a href="${esc(site.correctionFormUrl)}">Send a correction</a> — accepted changes ` +
-      'go into the source database and appear here at the next publish.</p>',
+    '<h2>What each page shows</h2>',
+    '<p class="note">A four-generation pedigree. The dog’s own offspring, grouped by ' +
+      'mate. Its full siblings. And whatever DNA test results are on record, shown ' +
+      'exactly as recorded.</p>',
+    `<p class="note">Every one of the ${esc(stats.dogs.toLocaleString('en'))} dogs has a ` +
+      'page, however little is known about it — a founder with no recorded parents is ' +
+      'in here too.</p>',
+    '</section>',
+    // The conventions a pedigree page uses, explained once here rather than captioned
+    // under all 62,469 charts. A reference work should not annotate itself on every
+    // page; it should be legible, and say once how to read it.
+    '<section>',
+    '<h2>Reading a pedigree</h2>',
+    '<p class="note"><strong>Colour</strong> marks an ancestor that appears more than ' +
+      'once in the same pedigree — line-breeding. Each repeated dog has its own tint, ' +
+      'and the stronger the colour, the larger the share of the blood that dog ' +
+      'contributes. A chart with no colour in it has no ancestor doubled up.</p>',
+    '<p class="note"><strong>A name that is a link</strong> has a record of its own, and ' +
+      'that record has its own pedigree behind it. <strong>A name in plain text</strong> ' +
+      'is recorded only as the parent of the dog beside it — the register knows the ' +
+      'name and nothing further.</p>',
+    '<p class="note"><strong>An empty box</strong> is a position with no ancestor ' +
+      'recorded. Every pedigree is drawn to four generations whether or not the records ' +
+      'reach that far, so a short line is visibly short rather than quietly cropped.</p>',
+    '</section>',
+    // A first release says two useful things at once: the catalogue is alive and being
+    // worked on, and here is what is missing — which is what turns a reader into someone
+    // who sends a correction. Deliberately no dates: an undated plan can stay true for a
+    // year, and nothing here is a commitment the Foundation has made to a schedule.
+    '<section>',
+    '<h2>A first release</h2>',
+    '<p class="note">This is the first published version of the catalogue. Every dog in ' +
+      'the register is here, with its pedigree as complete as the records allow — but ' +
+      'the site around them is still being built.</p>',
+    '<p class="note"><strong>Here now:</strong> a page for every dog, four-generation ' +
+      'pedigrees, offspring grouped by mate, full siblings, DNA test results, search by ' +
+      'name, and a JSON version of every record for anyone building on the data.</p>',
+    '<p class="note"><strong>Planned:</strong> pages gathering dogs by kennel, birth ' +
+      'year, country and DNA test; an A–Z index of the whole register; and photographs, ' +
+      'once the right to publish each one has been settled.</p>',
+    // Naming the three reports was no use to anyone who does not already run the desktop
+    // application — which is most people who will read this page. Say what each answers.
+    '<p class="note">Also planned: the analysis the Foundation already runs on the ' +
+      'desktop, available here.</p>',
+    '<ul class="plain">',
+    '<li><strong>Linebreeding</strong> — which ancestors appear on both the sire’s and ' +
+      'the dam’s side of a pedigree, how close up they sit, and how much of the dog they ' +
+      'account for between them.</li>',
+    '<li><strong>Hypothetical matings</strong> — choose a sire and a dam that have never ' +
+      'been bred together and see the pedigree their puppies would have, its inbreeding ' +
+      'coefficient, and a warning where both parents carry the same recessive DNA ' +
+      'result.</li>',
+    '<li><strong>Foundation reports</strong> — which of the breed’s founding dogs stand ' +
+      'behind a pedigree, and in what proportion each of them contributed.</li>',
+    '<li><strong>DNA test reports</strong> — for a chosen test, how the whole population ' +
+      'divides between clear, carrier and affected, and which dogs make up each group.</li>',
+    '</ul>',
     '</section>',
   ].join('\n');
 

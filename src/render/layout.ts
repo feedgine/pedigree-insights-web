@@ -10,6 +10,7 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
+import { PUBLISHED_AT } from '../generated/published';
 import { esc, jsonForScript, lines } from './escape';
 import { SITE, type SiteConfig } from './site';
 
@@ -74,6 +75,19 @@ function header(meta: PageMeta, site: SiteConfig): string {
   );
 }
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** `2026-08-29` → `29 August 2026`. Parsed textually, so no timezone can shift the day. */
+function longDate(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso;
+  const [, y, mo, d] = m;
+  return `${Number(d)} ${MONTHS[Number(mo) - 1] ?? mo} ${y}`;
+}
+
 function footer(site: SiteConfig): string {
   return lines(
     '<footer class="site-foot"><div class="wrap">',
@@ -82,9 +96,12 @@ function footer(site: SiteConfig): string {
       `<a href="${esc(site.dataLicenceUrl)}" rel="license">${esc(site.dataLicence)}</a>. ` +
       'Photographs are licensed separately and are not covered by that licence.</p>',
     `<p>Spotted a mistake, or have a dog to add? ` +
-      `<a href="${esc(site.correctionFormUrl)}">Send a correction</a> — accepted changes go ` +
-      'into the source database and appear here at the next publish.</p>',
-    `<p class="fine"><a href="${esc(site.privacyPolicyUrl)}">Privacy policy</a> · ` +
+      `<a href="${esc(site.correctionFormUrl)}">Send a correction</a>, or write to ` +
+      `<a href="mailto:${esc(site.correctionEmail)}">${esc(site.correctionEmail)}</a> — ` +
+      'accepted changes go into the source database and appear here at the next ' +
+      'publish.</p>',
+    `<p class="fine">Data last published ${esc(longDate(PUBLISHED_AT))}. ` +
+      `<a href="${esc(site.privacyPolicyUrl)}">Privacy policy</a> · ` +
       'This catalogue publishes facts about dogs. Owners, microchip numbers and litter ' +
       'records are not published.</p>',
     '</div></footer>',

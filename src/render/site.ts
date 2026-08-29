@@ -18,6 +18,8 @@ export interface SiteConfig {
   readonly publisherUrl: string;
   /** Where a visitor reports a mistake (R-2.7, R-9.1). */
   readonly correctionFormUrl: string;
+  /** An alternative to the form, for anyone who would rather write than fill in fields. */
+  readonly correctionEmail: string;
   readonly privacyPolicyUrl: string;
   /** Licence of the published data — not of the photographs, not of the code (§7.6). */
   readonly dataLicence: string;
@@ -46,7 +48,10 @@ export const SITE: SiteConfig = {
   origin: 'https://pedigree.japanesespitz.org',
   publisher: 'Japanese Spitz Foundation',
   publisherUrl: 'https://japanesespitz.org',
-  correctionFormUrl: 'https://japanesespitz.org/projects/japanese-spitz-database/',
+  // The Foundation's own submission form. Owner-supplied 2026-08-29, replacing the
+  // project page this pointed at while the real address was unknown.
+  correctionFormUrl: 'https://forms.gle/QGZE2ttfPS6CQu866',
+  correctionEmail: 'pedigree@japanesespitz.org',
   privacyPolicyUrl: 'https://japanesespitz.org/privacy-policy/',
   dataLicence: 'CC BY-NC-SA 4.0',
   dataLicenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
