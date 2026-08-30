@@ -75,22 +75,33 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let rows: Row[] = [];
 
   if (query !== '') {
-    const like = `%${accentFreeName(query).toLowerCase()}%`;
+    const needle = accentFreeName(query).toLowerCase();
 
-    // Counted separately so the page can say how many there are, not just how many it is
-    // showing. Two indexed reads instead of one, on a column that is indexed for it.
+    // `instr()`, not `LIKE '%…%'`, for two reasons.
+    //
+    // D1 caps a LIKE or GLOB pattern at **50 bytes**, pattern included. That is generous
+    // for `abaseiko` and far too small for a Japanese name: katakana is three bytes a
+    // character, so アレキサンダー・オブ・ハラセガルデン builds a 56-byte pattern and the
+    // query fails outright with `LIKE or GLOB pattern too complex`. `instr()` takes a
+    // plain string argument and has no such limit.
+    //
+    // And `LIKE` treats `%` and `_` in the user's own typing as wildcards, so searching
+    // for a name containing either matched the wrong dogs. `instr()` matches literally.
+    //
+    // Nothing is lost in speed: a leading-wildcard LIKE cannot use an index either, so
+    // both are a scan of the name column.
     const count = await context.env.DB.prepare(
-      'SELECT COUNT(*) AS n FROM dog WHERE name_folded LIKE ?1',
+      'SELECT COUNT(*) AS n FROM dog WHERE instr(name_folded, ?1) > 0',
     )
-      .bind(like)
+      .bind(needle)
       .first<{ n: number }>();
     total = count?.n ?? 0;
 
     const result = await context.env.DB.prepare(
       'SELECT slug, name, dob, registration, offspring_count FROM dog ' +
-        'WHERE name_folded LIKE ?1 ORDER BY name COLLATE NOCASE LIMIT ?2 OFFSET ?3',
+        'WHERE instr(name_folded, ?1) > 0 ORDER BY name COLLATE NOCASE LIMIT ?2 OFFSET ?3',
     )
-      .bind(like, PER_PAGE, (page - 1) * PER_PAGE)
+      .bind(needle, PER_PAGE, (page - 1) * PER_PAGE)
       .all<Row>();
     rows = result.results ?? [];
   }

@@ -20,10 +20,28 @@ const SPECIAL: ReadonlyMap<string, string> = new Map([
   ['ı', 'i'], ['ŋ', 'n'], ['Ŋ', 'N'],
 ]);
 
+/**
+ * Combining marks that must SURVIVE folding.
+ *
+ * U+3099 and U+309A are the Japanese voiced and semi-voiced sound marks. NFD decomposition
+ * turns ダ into タ + U+3099, which makes them look like accents to a rule that strips
+ * combining marks — but a dakuten is not an accent. It changes the letter: da is not ta,
+ * bu is not fu. Stripping them silently rewrote every katakana name in the register.
+ * Found 2026-08-29 on アレキサンダー・オブ・ハラセガルデン.
+ */
+const KEEP = /[\u3099\u309A]/;
+
 export function accentFreeName(name: string): string {
   let expanded = '';
   for (const ch of name.normalize('NFC')) expanded += SPECIAL.get(ch) ?? ch;
-  return expanded.normalize('NFD').replace(/\p{M}+/gu, '');
+  return (
+    expanded
+      .normalize('NFD')
+      .replace(/\p{M}/gu, (mark) => (KEEP.test(mark) ? mark : ''))
+      // Back to NFC so the marks that were kept recompose into their own characters:
+      // タ + U+3099 becomes ダ again rather than staying decomposed.
+      .normalize('NFC')
+  );
 }
 
 /** Does this name look any different without its accents? */

@@ -48,9 +48,10 @@ export const SITE: SiteConfig = {
   origin: 'https://pedigree.japanesespitz.org',
   publisher: 'Japanese Spitz Foundation',
   publisherUrl: 'https://japanesespitz.org',
-  // The Foundation's own submission form. Owner-supplied 2026-08-29, replacing the
-  // project page this pointed at while the real address was unknown.
-  correctionFormUrl: 'https://forms.gle/QGZE2ttfPS6CQu866',
+  // The Foundation's own add-or-correct-a-dog form. Owner-supplied 2026-08-29; replaced
+  // the same day with the form that actually collects dog records rather than general
+  // enquiries.
+  correctionFormUrl: 'https://forms.gle/NexYrTUd41AThNzo9',
   correctionEmail: 'pedigree@japanesespitz.org',
   privacyPolicyUrl: 'https://japanesespitz.org/privacy-policy/',
   dataLicence: 'CC BY-NC-SA 4.0',
