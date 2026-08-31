@@ -22,10 +22,35 @@ export interface CatalogueStats {
   readonly publishedAt: string;
 }
 
-/** The `Dataset` node: the database described as one thing, not 62,469 things (R-6.4). */
+/**
+ * The `Dataset` node: the database described as one thing, not 62,469 things (R-6.4).
+ *
+ * Emitted as a `@graph`, for the same reason the dog pages are. `publisher` is an `@id`
+ * reference, and an `@id` resolves only inside the document that carries it — so pointing
+ * at `#publisher` while defining that node nowhere left a consumer with an untyped node.
+ * Google's validator reported exactly that: *Invalid object type for field "publisher"*.
+ * The dog pages were always correct because they carry the `Organization` in their own
+ * graph; only this page referenced a node it never shipped.
+ *
+ * `creator` now references the same node instead of repeating an `Organization` inline.
+ * Two nodes with the same name and no shared identifier are two organisations to a
+ * machine, however obvious the duplication looks to a reader.
+ *
+ * No `distribution`: it advertised `…/api/dog/{slug}.json`, a URI template with a literal
+ * `{slug}` in it, and `DataDownload` has no template mechanism — anything following that
+ * `contentUrl` gets a 404. The per-dog JSON is already announced honestly, by the
+ * `<link rel="alternate" type="application/json">` each dog page carries. A `distribution`
+ * belongs here only if a real bulk download is ever published.
+ */
 function datasetJsonLd(site: SiteConfig, stats: CatalogueStats): unknown {
-  return {
-    '@context': 'https://schema.org',
+  const publisher = {
+    '@type': 'Organization',
+    '@id': `${site.origin}/#publisher`,
+    name: site.publisher,
+    url: site.publisherUrl,
+  };
+
+  const dataset = {
     '@type': 'Dataset',
     '@id': `${site.origin}/#dataset`,
     name: site.name,
@@ -35,14 +60,14 @@ function datasetJsonLd(site: SiteConfig, stats: CatalogueStats): unknown {
     url: `${site.origin}/`,
     license: site.dataLicenceUrl,
     isAccessibleForFree: true,
-    creator: { '@type': 'Organization', name: site.publisher, url: site.publisherUrl },
-    publisher: { '@id': `${site.origin}/#publisher` },
+    creator: { '@id': publisher['@id'] },
+    publisher: { '@id': publisher['@id'] },
     dateModified: stats.publishedAt.slice(0, 10),
-    distribution: {
-      '@type': 'DataDownload',
-      encodingFormat: 'application/json',
-      contentUrl: `${site.origin}/api/dog/{slug}.json`,
-    },
+  };
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [dataset, publisher],
   };
 }
 
