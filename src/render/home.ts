@@ -11,6 +11,7 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
+import { PUBLISHED_AT } from '../generated/published';
 import { esc } from './escape';
 import { renderPage } from './layout';
 import { SITE, type SiteConfig } from './site';
@@ -45,18 +46,55 @@ function datasetJsonLd(site: SiteConfig, stats: CatalogueStats): unknown {
   };
 }
 
+/**
+ * The banner at the top of the home page, or nothing at all.
+ *
+ * With more than one configured, the choice rotates by publish date. That is the only
+ * rotation a static page can honestly offer: there is no JavaScript on this site, so it
+ * cannot vary per visitor — but it can vary per publish, which at a monthly cadence is a
+ * monthly rotation and costs nothing.
+ *
+ * `width` and `height` are declared so the browser reserves the space before the image
+ * arrives, and the page does not jump under the reader mid-sentence. Not lazy-loaded: it
+ * is the first thing below the heading, so deferring it would only make it flash in late.
+ */
+function renderBanner(site: SiteConfig): string {
+  if (site.banners.length === 0) return '';
+  const days = Math.floor(Date.parse(`${PUBLISHED_AT}T00:00:00Z`) / 86_400_000);
+  const banner = site.banners[days % site.banners.length]!;
+  return (
+    '<section class="banner">' +
+    `<a href="${esc(banner.href)}">` +
+    `<img src="${esc(banner.image)}" alt="${esc(banner.alt)}" ` +
+    `width="${banner.width}" height="${banner.height}">` +
+    '</a></section>'
+  );
+}
+
 export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): string {
   const body = [
     '<div class="subject">',
     `<h1>${esc(site.name)}</h1>`,
     `<p class="lede">Pedigree records for ${esc(stats.dogs.toLocaleString('en'))} ` +
-      `${esc(site.breed)} dogs — ancestry, offspring, siblings and DNA test results, ` +
-      `published by <a href="${esc(site.publisherUrl)}">${esc(site.publisher)}</a>.</p>`,
+      `${esc(site.breed)} dogs — ancestry, offspring, siblings and DNA test results.</p>`,
     '</div>',
+    renderBanner(site),
     '<section>',
     '<h2>Find a dog</h2>',
     '<p class="note">Search by name in the box above. Accents are optional — ' +
       '<em>tahtihovin</em> finds <em>TÄHTIHOVIN</em>, and the other way round.</p>',
+    // Known issue, stated plainly. Someone searching a name they read on a pedigree and
+    // not finding it will assume the dog is missing; it is usually recorded under the
+    // spelling another register used. Saying so turns a dead end into a second try.
+    '<p class="note">Names for the same dog often differ between national registers, and ' +
+      'sometimes between a register and the pedigree document itself. Where sources ' +
+      'disagree, this database follows a fixed order: the studbook of the country of ' +
+      'origin first, then the pedigree as scanned, and only then the studbook of the ' +
+      'country where the dog is registered now. If a name you know is not here, try ' +
+      'another spelling of it before concluding the dog is missing.</p>',
+    '<p class="note">The name also identifies the dog here. Where the same name has been ' +
+      'used for more than one dog, the year of birth is added to tell them apart — for ' +
+      'example <em>GODDESS OF IWAKI T.M.K. FCI (2018)</em>.</p>',
     '</section>',
     // Deliberately NOT an "about this catalogue" section. The footer already carries the
     // licence, the correction route and the privacy position on every page (R-2.7), so

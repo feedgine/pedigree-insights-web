@@ -25,7 +25,16 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import type { DogPayload } from '../publish/payload';
@@ -126,6 +135,18 @@ function main(): void {
   if (opts.clean && opts.only == null) {
     const dogs = join(opts.out, 'dog');
     if (existsSync(dogs)) rmSync(dogs, { recursive: true });
+  }
+
+  // Anything checked into `assets/` ships as-is: images and the like, kept in the repo
+  // because they are part of the site rather than derived from the master.
+  if (existsSync('assets')) {
+    for (const name of readdirSync('assets')) {
+      const from = join('assets', name);
+      if (!statSync(from).isFile()) continue;
+      const to = join(opts.out, 'assets', name);
+      mkdirSync(dirname(to), { recursive: true });
+      copyFileSync(from, to);
+    }
   }
 
   // One stylesheet for the whole site, written once. Pages link to it rather than

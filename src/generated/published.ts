@@ -11,4 +11,4 @@
  * Committed rather than git-ignored so a fresh clone typechecks, and so the history
  * carries a record of when each publish actually happened.
  */
-export const PUBLISHED_AT = '2026-08-30';
+export const PUBLISHED_AT = '2026-08-31';

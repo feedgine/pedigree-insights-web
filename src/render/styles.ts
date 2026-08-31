@@ -167,6 +167,10 @@ ul.chips li a, ul.chips li span {
   border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-soft);
   text-decoration: none; color: var(--ink);
 }
+.banner { padding: 22px 0; }
+.banner img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
+@media print { .banner { display: none; } }
+
 /* A list that reads as prose: same voice as .note, but each item is its own thing. */
 ul.plain { list-style: none; margin: 0 0 14px; padding: 0; font-size: 13px; color: var(--ink-faint); }
 ul.plain li { margin: 0 0 8px; }

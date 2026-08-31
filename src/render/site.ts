@@ -8,6 +8,16 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
+export interface SiteBanner {
+  readonly image: string;
+  /** Read aloud in place of the image, and shown if it fails to load. */
+  readonly alt: string;
+  readonly href: string;
+  /** Intrinsic size, so the page reserves the space and does not jump as it loads. */
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface SiteConfig {
   /** The public name of the site. The club's own name (PRD §7.4). */
   readonly name: string;
@@ -26,6 +36,18 @@ export interface SiteConfig {
   readonly dataLicenceUrl: string;
   /** The breed the catalogue covers, for the first line of body text (R-6.8). */
   readonly breed: string;
+  /**
+   * Banners the Foundation runs at the top of the home page.
+   *
+   * A list rather than a single banner, so adding one is a config change and nothing
+   * else. With more than one, the home page shows a different banner each publish —
+   * which is the only honest rotation available here: the page is a static file, and
+   * rotating per visitor would need JavaScript, which this site does not use. At a
+   * monthly publish that is a monthly rotation.
+   *
+   * Empty list means no banner and no gap where one would be.
+   */
+  readonly banners: readonly SiteBanner[];
   /**
    * Which families of hub page exist yet.
    *
@@ -57,6 +79,19 @@ export const SITE: SiteConfig = {
   dataLicence: 'CC BY-NC-SA 4.0',
   dataLicenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
   breed: 'Japanese Spitz',
+  banners: [
+    {
+      image: '/assets/dna-tests-banner.webp',
+      alt:
+        'Genetic testing for Japanese Spitz. Recommended DNA tests: WD-ATP7B (copper ' +
+        'toxicosis), SAMS-KCNJ10 (cerebellar ataxia), PRA-rcd4-C2orf71 (rod-cone ' +
+        'dysplasia 4), MDR2-ABCB1 (phenobarbital resistance), F7 (Factor VII deficiency) ' +
+        'and CUR/N. 30% discount on EVG testing with code JSF2025.',
+      href: 'https://japanesespitz.org/guide-to-japanese-spitz-health-and-genetic-mutations/',
+      width: 1774,
+      height: 887,
+    },
+  ],
   // None built yet (2026-08-28). Each flips to true with the change that builds it.
   hubs: { kennel: false, year: false, country: false, dna: false },
 };
