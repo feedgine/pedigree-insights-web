@@ -106,22 +106,32 @@ function payloadFiles(dir: string): string[] {
 }
 
 /**
- * The slugs this site will contain, given the include filter.
+ * Every slug this publish contains — the set a page is allowed to link to.
  *
  * Computed before anything is rendered, because a page has to know what exists before it
- * can decide what to link to. It is the include filter's answer, not this run's — so
- * `--limit` and `--only` still produce pages that link the way the finished site links,
- * rather than pages where everything is text because only one dog was written.
+ * can decide what to link to. `--limit` and `--only` therefore still produce pages that
+ * link the way the finished site links, rather than pages where everything is text
+ * because only one dog was written.
  *
- * In production this set is every dog: the indexed tier is served as files, the rest from
- * D1, and R-1.1 says every dog has a page. It matters only for partial builds — which is
- * exactly when links would otherwise point at nothing.
+ * It deliberately does NOT apply the include filter. That filter decides which pages this
+ * run writes as **files**; it says nothing about which dogs have a **page**. R-1.1 says
+ * every dog has one: the indexed tier as files, the remainder rendered from R2 by
+ * `functions/dog/[slug].ts`, which passes `() => true` for exactly this reason.
+ *
+ * Applying the filter here was a bug, and a quiet one. On a static page an indexed dog's
+ * unindexed ancestors came out as plain text, while the very same ancestors linked
+ * normally on any dynamic page — one renderer giving two answers for one dog, which is
+ * the drift the shared template exists to prevent. It also removed the only `follow` path
+ * a crawler had into the unindexed tier, which `noindex, follow` explicitly asks for.
+ *
+ * What is left is the honest question: is this dog part of this publish? A partial `out/`
+ * still yields pages that link only to payloads that are really there.
  */
-function slugsInSite(files: readonly string[], include: 'indexed' | 'all'): Set<string> {
+function publishedSlugs(files: readonly string[]): Set<string> {
   const slugs = new Set<string>();
   for (const file of files) {
     const payload = JSON.parse(readFileSync(file, 'utf8')) as DogPayload;
-    if (include === 'all' || payload.indexed) slugs.add(payload.slug);
+    slugs.add(payload.slug);
   }
   return slugs;
 }
@@ -156,7 +166,7 @@ function main(): void {
   /** Every page this run produced, so the build says what it built. */
   const pages: string[] = [];
   const files = payloadFiles(opts.payloads);
-  const present = slugsInSite(files, opts.include);
+  const present = publishedSlugs(files);
   const hasPage = (slug: string) => present.has(slug);
 
   /** Every indexed slug, whether or not this run wrote its file — the sitemap describes
