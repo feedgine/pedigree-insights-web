@@ -53,3 +53,23 @@ describe('the public field whitelist', () => {
     expect(PUBLISHED_FIELDS.has('owner')).toBe(false);
   });
 });
+
+describe('the coefficients', () => {
+  it('publishes COI', () => {
+    expect(PUBLISHED_FIELDS.has('coi')).toBe(true);
+  });
+
+  it('does not publish AVK, and says why', () => {
+    // Measured 2026-09-02 on 400 dogs: BreedMate divides distinct ancestors by the
+    // THEORETICAL maximum for its generation setting (N=10 → 2,046 positions), so a
+    // pedigree that thins out early scores low for being incomplete rather than for being
+    // inbred — median 8.0%, against 49.6% for the same dogs over their filled positions,
+    // which is the convention a breeder means. Publishing the first number under the name
+    // AVK would read as catastrophic inbreeding. If this test is ever deleted, read the
+    // note on the field before deciding it was pedantry.
+    expect(PUBLISHED_FIELDS.has('avk')).toBe(false);
+    const decision = EXCLUDED_BY_ALIAS.get('avk');
+    expect(decision).toBeDefined();
+    expect(decision?.note).toContain('2,046');
+  });
+});

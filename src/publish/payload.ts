@@ -90,8 +90,6 @@ export interface DogPayload {
     readonly photo?: string;
     /** Stored COI, a fraction in [0,1] — see the scale note in the vendored schema. */
     readonly coi?: number;
-    /** Stored AVK, already a percentage in [0,100]. Never multiplied again. */
-    readonly avk?: number;
   };
   readonly sire: DogRef | null;
   readonly dam: DogRef | null;
@@ -276,7 +274,6 @@ export function buildPayload(ctx: PayloadContext, animal: Animal): DogPayload {
       country: text(animal.country),
       photo: text(animal.photo),
       coi: animal.coi ?? undefined,
-      avk: animal.avk ?? undefined,
     }),
     sire: parentRef(ctx, animal.sire),
     dam: parentRef(ctx, animal.dam),

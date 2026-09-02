@@ -68,9 +68,9 @@ export const PUBLISHED_FIELDS: ReadonlySet<string> = new Set([
   // Breeding — R-2.2 breeder (published as stored, §7.2), R-2.6 country hub.
   'breeder',
   'country',
-  // Stored coefficients — R-6.4 emits `pdg:inbreedingCoefficient` where one is held.
+  // Stored coefficient — R-6.4 emits `pdg:inbreedingCoefficient` where one is held.
+  // `avk` is excluded below; the reason is a measurement one, not a privacy one.
   'coi',
-  'avk',
   // DNA / genetic test block, catalogue #62–#74 — R-2.6 context strip and R-3.4 DNA hubs.
   'mh',
   'lte',
@@ -170,6 +170,22 @@ export const EXCLUDED_FIELDS: readonly FieldDecision[] = [
     as: 'points',
     reason: 'not-published',
     note: 'Show points; no meaning agreed for the public catalogue.',
+  },
+  {
+    as: 'avk',
+    reason: 'not-published',
+    note:
+      'Withdrawn 2026-09-02. It IS BreedMate\'s AVK, computed correctly by its own ' +
+      'definition — distinct ancestors / (2^(N+1) − 2) — but that denominator is the ' +
+      'THEORETICAL maximum for the generation setting, here N=10, so 2,046 positions. ' +
+      'A pedigree that thins out before ten generations therefore scores low for being ' +
+      'incomplete, not for being inbred: measured across 400 dogs the stored values run ' +
+      'at a median of 8.0%, while the same pedigrees over their FILLED positions — the ' +
+      'convention a breeder means when they say AVK should exceed 85% — give 49.6%. ' +
+      'Publishing the first number under the name AVK would read as catastrophic ' +
+      'inbreeding. Publish it again only when it is computed over filled positions, or ' +
+      'labelled with its denominator; the algorithm is decoded in _General ' +
+      'Specifications/decompiled/PedX64_native_COI_AVK_reference.md.',
   },
   {
     as: 'studbookNo',

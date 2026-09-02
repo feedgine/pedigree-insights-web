@@ -37,6 +37,21 @@ export interface SiteConfig {
   /** The breed the catalogue covers, for the first line of body text (R-6.8). */
   readonly breed: string;
   /**
+   * How many generations the stored inbreeding coefficient was computed over.
+   *
+   * A COI is not comparable without its depth — the same dog scores differently at five
+   * generations and at ten — so the figure is never shown without this number beside it.
+   *
+   * It is a BreedMate application setting ("Max generations for inbreeding calculation")
+   * and is NOT recorded anywhere in the `.db`, so it cannot be read from the master and
+   * has to live here. The value was recovered from the data itself on 2026-09-02: the
+   * stored AVK is `distinct ancestors within N generations / (2^(N+1) − 2)`, and sweeping
+   * N over a 400-dog sample puts the error at exactly zero for N = 10 and nowhere else.
+   * **If the setting is ever changed in BreedMate, change it here in the same hour** —
+   * nothing in the pipeline can detect the difference.
+   */
+  readonly coiGenerations: number;
+  /**
    * Banners the Foundation runs at the top of the home page.
    *
    * A list rather than a single banner, so adding one is a config change and nothing
@@ -79,6 +94,7 @@ export const SITE: SiteConfig = {
   dataLicence: 'CC BY-NC-SA 4.0',
   dataLicenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
   breed: 'Japanese Spitz',
+  coiGenerations: 10,
   banners: [
     {
       image: '/assets/dna-tests-banner.webp',

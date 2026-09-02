@@ -106,8 +106,14 @@ function subjectCard(payload: DogPayload, site: SiteConfig): string {
     ['Breeder', s.breeder],
     ['Country of origin', s.country],
     ['Other name', s.callName],
-    // The stored COI is a fraction; it is shown as the percentage a breeder expects.
-    ['Inbreeding coefficient', s.coi == null ? undefined : `${(s.coi * 100).toFixed(2)}%`],
+    // The stored COI is a fraction; it is shown as the percentage a breeder expects — and
+    // never without its generation depth, because the same dog scores differently over
+    // five generations and over ten, and a figure that cannot be compared invites being
+    // compared anyway.
+    [
+      `Inbreeding coefficient (${site.coiGenerations} generations)`,
+      s.coi == null ? undefined : `${(s.coi * 100).toFixed(2)}%`,
+    ],
   ];
   const rows = facts
     .filter((f): f is [string, string] => f[1] !== undefined && f[1] !== '')

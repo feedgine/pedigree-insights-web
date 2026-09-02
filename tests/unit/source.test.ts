@@ -62,6 +62,9 @@ describe('loading a population', () => {
   });
 
   it('parses a coefficient stored as text back into a number', () => {
+    // AVK is in the source but is no longer published (see the whitelist note), so it is
+    // not in the projection and never reaches memory — which this asserts, because a
+    // column that stops being read is exactly the kind of change that should be visible.
     const file = makeDb(
       ['Name', 'Sire', 'Dam', 'COI', 'AVK'],
       [{ Name: 'TEXTUAL COI', COI: '0.19', AVK: '80' }],
@@ -69,7 +72,7 @@ describe('loading a population', () => {
     try {
       const dog = loadPopulation(file).animals[0]!;
       expect(dog.coi).toBe(0.19);
-      expect(dog.avk).toBe(80);
+      expect(dog.avk).toBeNull();
     } finally {
       cleanUp(file);
     }

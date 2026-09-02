@@ -150,11 +150,18 @@ export function dogJsonLd(
     'pdg:offspring': offspring,
     'pdg:offspringCount': payload.offspringCount,
     // The stored coefficient is a fraction in [0,1]; it is published as the percentage a
-    // reader expects, with the unit named rather than implied.
+    // reader expects, with the unit named rather than implied — and with the generation
+    // depth alongside it, because a COI without its depth is not comparable and a machine
+    // reader has even less chance than a person of noticing that.
     'pdg:inbreedingCoefficient':
       s.coi == null
         ? undefined
-        : { '@type': 'QuantitativeValue', value: Number((s.coi * 100).toFixed(2)), unitText: '%' },
+        : {
+            '@type': 'QuantitativeValue',
+            value: Number((s.coi * 100).toFixed(2)),
+            unitText: '%',
+          },
+    'pdg:inbreedingCoefficientGenerations': s.coi == null ? undefined : site.coiGenerations,
     'pdg:dnaResult': payload.context.dna.map((d) => ({
       '@type': 'PropertyValue',
       name: d.test,
