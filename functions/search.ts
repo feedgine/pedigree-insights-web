@@ -17,10 +17,17 @@
  * exist: the site would know something it declines to show. Paging is plain `?page=`
  * links, so it works with scripting off and every page of results is bookmarkable.
  *
+ * **A query shorter than `MIN_TOKEN` is refused, not answered.** It is the one shape that
+ * no index can serve, it matches most of the catalogue, and 200 reachable pages of it is
+ * a day's database allowance for a single crawler. Refusing is not a limitation being
+ * apologised for: one letter is not a search anyone means.
+ *
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
 import { accentFreeName } from '../src/render/text';
+import { MIN_TOKEN, indexToken, prefixUpperBound } from '../src/publish/searchWords';
+import { formatDmy } from '../src/vendor/pedigree-insights/schema';
 import { esc } from '../src/render/escape';
 import { renderPage } from '../src/render/layout';
 import { SITE } from '../src/render/site';
@@ -73,37 +80,60 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   let total = 0;
   let rows: Row[] = [];
+  /** The query carries nothing long enough to look up — see `MIN_TOKEN`. */
+  let tooShort = false;
 
   if (query !== '') {
     const needle = accentFreeName(query).toLowerCase();
 
-    // `instr()`, not `LIKE '%…%'`, for two reasons.
+    // One path, and a refusal.
     //
-    // D1 caps a LIKE or GLOB pattern at **50 bytes**, pattern included. That is generous
-    // for `abaseiko` and far too small for a Japanese name: katakana is three bytes a
-    // character, so アレキサンダー・オブ・ハラセガルデン builds a 56-byte pattern and the
-    // query fails outright with `LIKE or GLOB pattern too complex`. `instr()` takes a
-    // plain string argument and has no such limit.
+    // `search_word` is a range scan over the suffixes of every distinct word, which is
+    // what makes "a fragment anywhere inside a name" something an index can serve at all
+    // — the reasoning is in `searchWords.ts`. It narrows; `instr` then decides, on that
+    // small set rather than on 62,466 rows. `instr` still has to be there because a query
+    // of two words can span a separator, which no single token covers.
     //
-    // And `LIKE` treats `%` and `_` in the user's own typing as wildcards, so searching
-    // for a name containing either matched the wrong dogs. `instr()` matches literally.
+    // The narrowing never loses a dog. The longest token of the query contains no
+    // separator, so any name containing the whole query contains that token inside a
+    // single word — which is exactly what the suffix range finds. Checked against the
+    // real catalogue: 145 queries, no difference from a plain scan.
     //
-    // Nothing is lost in speed: a leading-wildcard LIKE cannot use an index either, so
-    // both are a scan of the name column.
-    const count = await context.env.DB.prepare(
-      'SELECT COUNT(*) AS n FROM dog WHERE instr(name_folded, ?1) > 0',
-    )
-      .bind(needle)
-      .first<{ n: number }>();
-    total = count?.n ?? 0;
+    // `instr()` and not `LIKE '%…%'`, for two reasons found live: D1 caps a LIKE pattern
+    // at 50 bytes, which katakana reaches in 17 characters, and LIKE reads a `%` typed by
+    // the visitor as a wildcard.
+    //
+    // A query with no token of at least `MIN_TOKEN` characters is REFUSED rather than
+    // served. It could only be answered by scanning the whole table, it would match most
+    // of the catalogue, and with 200 pages reachable one crawler could spend a day's
+    // database allowance on it — which is how search went down on 2026-09-01. A single
+    // letter is not a search anyone means.
+    const token = indexToken(needle);
+    tooShort = token === null;
 
-    const result = await context.env.DB.prepare(
-      'SELECT slug, name, dob, registration, offspring_count FROM dog ' +
-        'WHERE instr(name_folded, ?1) > 0 ORDER BY name COLLATE NOCASE LIMIT ?2 OFFSET ?3',
-    )
-      .bind(needle, PER_PAGE, (page - 1) * PER_PAGE)
-      .all<Row>();
-    rows = result.results ?? [];
+    if (token !== null) {
+      const where =
+        'g.slug IN (SELECT wd.slug FROM search_word s ' +
+        'JOIN search_word_dog wd ON wd.word = s.word ' +
+        'WHERE s.suffix >= ?1 AND s.suffix < ?2) ' +
+        'AND instr(g.name_folded, ?3) > 0';
+      const upper = prefixUpperBound(token);
+
+      const count = await context.env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM dog g WHERE ${where}`,
+      )
+        .bind(token, upper, needle)
+        .first<{ n: number }>();
+      total = count?.n ?? 0;
+
+      const result = await context.env.DB.prepare(
+        'SELECT g.slug, g.name, g.dob, g.registration, g.offspring_count FROM dog g ' +
+          `WHERE ${where} ORDER BY g.name COLLATE NOCASE LIMIT ?4 OFFSET ?5`,
+      )
+        .bind(token, upper, needle, PER_PAGE, (page - 1) * PER_PAGE)
+        .all<Row>();
+      rows = result.results ?? [];
+    }
   }
 
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -115,6 +145,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     body =
       '<section><h2>Search</h2><p class="note">Type a dog’s name in the box above. ' +
       'Accents are optional: <em>tahtihovin</em> finds <em>TÄHTIHOVIN</em>.</p></section>';
+  } else if (tooShort) {
+    body =
+      `<section><h2>“${esc(query)}” is too short to search</h2>` +
+      `<p class="note">Please type at least ${MIN_TOKEN} letters. One letter matches most ` +
+      'of the catalogue, so the answer would be every dog rather than the one you want. ' +
+      'A kennel affix on its own works well — it finds the whole line.</p></section>';
   } else if (total === 0) {
     body =
       `<section><h2>No results for “${esc(query)}”</h2>` +
@@ -132,7 +168,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         .map(
           (r) =>
             `<li><a href="/dog/${esc(r.slug)}">${esc(r.name)}</a>` +
-            (r.dob ? ` <span class="when">${esc(r.dob.slice(0, 10))}</span>` : '') +
+            // `formatDmy`, the same formatter the dog page and the bracket use. Slicing the
+            // stored value instead printed 2016-03-17 in a result list and 17-Mar-2016 on
+            // the page it links to — two spellings of one date, in two clicks.
+            (r.dob ? ` <span class="when">${esc(formatDmy(r.dob) ?? r.dob)}</span>` : '') +
             '</li>',
         )
         .join('')}</ul>`,
@@ -144,10 +183,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   return new Response(
     renderPage(
       {
+        // The tab has to say what the page says. A refused query has no result count,
+        // and printing "0 results" beside a page that explains it did not search would be
+        // two answers to one question.
         title:
           query === ''
             ? `Search — ${SITE.name}`
-            : `“${query}” — ${total} result${total === 1 ? '' : 's'}${pages > 1 ? `, page ${page}` : ''}`,
+            : tooShort
+              ? `“${query}” — too short to search`
+              : `“${query}” — ${total} result${total === 1 ? '' : 's'}${pages > 1 ? `, page ${page}` : ''}`,
         canonical: `${SITE.origin}/search`,
         // A results page is a view of the catalogue rather than part of it, so it is not
         // offered to the index — but its links must still be followed, which is how a

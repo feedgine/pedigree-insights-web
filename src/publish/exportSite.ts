@@ -24,6 +24,7 @@ import { dirname, join } from 'node:path';
 import type { DogPayload } from './payload';
 import { contentHash } from './payload';
 import { parseSlugState } from './slugMap';
+import { suffixes, words } from './searchWords';
 import { accentFreeName } from '../render/text';
 
 interface Options {
@@ -123,6 +124,8 @@ function main(): void {
 
   const dogRows: string[] = [];
   const dnaRows: string[] = [];
+  /** word -> the dogs carrying it. A Set because a name may repeat a word. */
+  const dogsByWord = new Map<string, Set<string>>();
   let indexed = 0;
 
   for (const file of payloadFiles(opts.payloads)) {
@@ -155,6 +158,27 @@ function main(): void {
     for (const d of p.context.dna) {
       dnaRows.push(`(${q(p.slug)},${q(d.test)},${q(d.result)})`);
     }
+
+    // The search index is built from the SAME folded string the `dog` row carries, so a
+    // query can never match one and miss the other.
+    for (const w of words(accentFreeName(p.name).toLowerCase())) {
+      let slugs = dogsByWord.get(w);
+      if (slugs === undefined) {
+        slugs = new Set<string>();
+        dogsByWord.set(w, slugs);
+      }
+      slugs.add(p.slug);
+    }
+  }
+
+  // Sorted so a rebuilt seed is byte-identical when the catalogue has not changed — the
+  // same determinism the payload hashes depend on.
+  const wordList = [...dogsByWord.keys()].sort();
+  const suffixRows: string[] = [];
+  const wordDogRows: string[] = [];
+  for (const w of wordList) {
+    for (const suffix of suffixes(w)) suffixRows.push(`(${q(suffix)},${q(w)})`);
+    for (const slug of [...dogsByWord.get(w)!].sort()) wordDogRows.push(`(${q(w)},${q(slug)})`);
   }
 
   const redirectRows = Object.entries(state.redirects).map(
@@ -169,6 +193,8 @@ function main(): void {
     'DELETE FROM dna_result;',
     'DELETE FROM redirect;',
     'DELETE FROM publish_state;',
+    'DELETE FROM search_word;',
+    'DELETE FROM search_word_dog;',
   ];
 
   batched(
@@ -181,6 +207,8 @@ function main(): void {
   if (redirectRows.length > 0) {
     batched(redirectRows, sql, 'INSERT INTO redirect (old_slug,new_slug) VALUES');
   }
+  batched(suffixRows, sql, 'INSERT INTO search_word (suffix,word) VALUES');
+  batched(wordDogRows, sql, 'INSERT INTO search_word_dog (word,slug) VALUES');
 
   const runReport = JSON.parse(
     readFileSync(join(opts.payloads, 'run-report.json'), 'utf8'),
@@ -200,6 +228,8 @@ function main(): void {
       pad('indexed') + indexed,
       pad('dna results') + dnaRows.length,
       pad('redirects') + redirectRows.length,
+      pad('search words') +
+        `${wordList.length}  (${suffixRows.length} suffixes, ${wordDogRows.length} word/dog pairs)`,
       pad('statements') + sql.length,
       pad('seed file') + opts.out,
     ].join('\n'),
