@@ -124,6 +124,8 @@ interface RunReport {
   readonly slugCollisions: number;
   readonly withoutRegistration: number;
   readonly retiredSlugs: number;
+  /** Dogs given a registration this run that kept the URL they already had. */
+  readonly registrationsAdopted: number;
   readonly firstRun: boolean;
   readonly largestPayloadBytes: number;
   readonly totalPayloadBytes: number;
@@ -249,6 +251,7 @@ async function main(): Promise<void> {
     slugCollisions: slugReport.collisions.length,
     withoutRegistration: slugReport.withoutRegistration,
     retiredSlugs: slugReport.retired,
+    registrationsAdopted: slugReport.registrationsAdopted,
     firstRun,
     largestPayloadBytes,
     totalPayloadBytes,
@@ -276,6 +279,12 @@ async function main(): Promise<void> {
       `${slugReport.collisions.length} collisions, ${slugReport.retired} retired`,
     `no registration   ${slugReport.withoutRegistration}  (cannot be followed through a rename)`,
   ];
+  if (slugReport.registrationsAdopted > 0) {
+    lines.push(
+      `registration added ${slugReport.registrationsAdopted} dog(s) gained a registration and kept ` +
+        'the URL they were already published under',
+    );
+  }
   if (restored > 0) {
     lines.push(
       `restored          ${restored} payload(s) the state believed were written were missing ` +

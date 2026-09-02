@@ -121,3 +121,51 @@ describe('the state file', () => {
     expect(() => parseSlugState(bad)).toThrow(/version/i);
   });
 });
+
+describe('a dog that gains a registration', () => {
+  it('keeps the URL it was already published under, and records no move', () => {
+    // Published once with no registration: the identity is synthetic.
+    const first = assignSlugs([dog('MAHO MIRAI DRAKO')]);
+    expect(slugFor(first, 'maho mirai drako')).toBe('maho-mirai-drako');
+
+    // The owner fills the registration in. Same dog, same name, new identity.
+    const second = assignSlugs(
+      [dog('MAHO MIRAI DRAKO', { registration: 'RKF4888086' })],
+      first.state,
+    );
+
+    expect(slugFor(second, 'maho mirai drako')).toBe('maho-mirai-drako');
+    expect(second.report.registrationsAdopted).toBe(1);
+    // Nothing moved, nothing was newly assigned, no redirect was needed.
+    expect(second.report.moved).toEqual([]);
+    expect(second.report.assigned).toBe(0);
+    expect(second.report.collisions).toEqual([]);
+    expect(second.state.redirects).toEqual({});
+    // The synthetic identity is gone rather than left holding the slug.
+    expect(second.state.assignments['reg:RKF4888086']).toBe('maho-mirai-drako');
+  });
+
+  it('still follows a later rename, now that the registration is the identity', () => {
+    const first = assignSlugs([dog('MAHO MIRAI DRAKO')]);
+    const second = assignSlugs(
+      [dog('MAHO MIRAI DRAKO', { registration: 'RKF4888086' })],
+      first.state,
+    );
+    const third = assignSlugs(
+      [dog('MAHO MIRAI DRACO', { registration: 'RKF4888086' })],
+      second.state,
+    );
+
+    expect(slugFor(third, 'maho mirai draco')).toBe('maho-mirai-draco');
+    expect(third.report.moved).toEqual([
+      { from: 'maho-mirai-drako', to: 'maho-mirai-draco', name: 'MAHO MIRAI DRACO' },
+    ]);
+    expect(third.state.redirects['maho-mirai-drako']).toBe('maho-mirai-draco');
+  });
+
+  it('does not adopt when the dog was already published under that registration', () => {
+    const first = assignSlugs([dog('KOU', { registration: 'FI1/99' })]);
+    const second = assignSlugs([dog('KOU', { registration: 'FI1/99' })], first.state);
+    expect(second.report.registrationsAdopted).toBe(0);
+  });
+});

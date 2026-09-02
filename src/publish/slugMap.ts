@@ -73,6 +73,8 @@ export interface SlugReport {
   readonly withoutRegistration: number;
   /** Slugs held in state for dogs no longer in the file. Kept, never reissued. */
   readonly retired: number;
+  /** Dogs that gained a registration and kept the URL they were already published under. */
+  readonly registrationsAdopted: number;
 }
 
 /**
@@ -187,12 +189,41 @@ export function assignSlugs(
     identitySeen.add(e.identity);
   }
 
+  // ---- 2b. a dog that has just been given a registration keeps its URL -------------
+  // The identity changes from synthetic to registration, but it is the same dog, and the
+  // state file proves it: `synthetic` still records which synthetic id this exact name was
+  // published under. Without this pass the registration reads as a brand-new dog — counted
+  // as `assigned`, never as `moved`, so no redirect is written — and the slug the dog
+  // already holds is refused as taken, so the registration is appended and the published
+  // URL is left dead. Measured on the real master 2026-09-02, one cleanup round: 47 dogs.
+  //
+  // This is not a guess in the way a rename of an unregistered dog would be. The name has
+  // not changed; only the identity the name is filed under has. The reverse move — a
+  // registration REMOVED — cannot be followed, because nothing records what it was.
+  let adopted = 0;
+  for (const e of entries) {
+    if (!e.identity.startsWith('reg:')) continue;
+    if (assignments[e.identity] !== undefined) continue;
+    const id = synthetic[e.key];
+    if (id === undefined) continue;
+    const heldSlug = assignments[`syn:${id}`];
+    if (heldSlug === undefined) continue;
+    assignments[e.identity] = heldSlug;
+    delete assignments[`syn:${id}`];
+    delete synthetic[e.key];
+    adopted += 1;
+  }
+
   // ---- 3. claim slugs -------------------------------------------------------------
   /** slug → the identity holding it. Seeded with every slug this site has ever used, so
    *  a URL published for a dog that has since left the file is never handed to another. */
   const RETIRED = ' retired';
   const taken = new Map<string, string>();
-  for (const [identity, slug] of Object.entries(previous.assignments)) taken.set(slug, identity);
+  // `assignments`, not `previous.assignments`: pass 2b has already moved a slug from a
+  // synthetic identity to the registration that replaced it. Seeding from the state as it
+  // was read would leave the dead synthetic identity holding the slug, so the dog would be
+  // refused its own URL and disambiguated into a new one — the exact bug 2b exists to fix.
+  for (const [identity, slug] of Object.entries(assignments)) taken.set(slug, identity);
   for (const old of Object.keys(previous.redirects)) if (!taken.has(old)) taken.set(old, RETIRED);
 
   const slugByKey = new Map<string, string>();
@@ -266,7 +297,7 @@ export function assignSlugs(
     slugByKey: sortedSlugs,
     identityByKey: sortedIdentities,
     state: { version: SLUG_STATE_VERSION, assignments, synthetic, redirects, nextSynthetic },
-    report: { assigned, moved, collisions, withoutRegistration, retired },
+    report: { assigned, moved, collisions, withoutRegistration, retired, registrationsAdopted: adopted },
   };
 }
 
