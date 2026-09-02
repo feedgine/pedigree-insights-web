@@ -244,6 +244,7 @@ export function renderDogPage(
   payload: DogPayload,
   site: SiteConfig = SITE,
   hasPage: HasPage = () => true,
+  publishedAt?: string,
 ): string {
   const plain = accentFreeName(payload.name);
   const meta: PageMeta = {
@@ -251,6 +252,7 @@ export function renderDogPage(
     description: lede(payload, site),
     canonical: dogUrl(site, payload.slug),
     noindex: !payload.indexed,
+    publishedAt,
     jsonUrl: dogJsonUrl(site, payload.slug),
     jsonLd: dogJsonLd(payload, site, plain, hasPage),
     crumbs: [

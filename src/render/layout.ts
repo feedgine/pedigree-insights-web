@@ -33,6 +33,20 @@ export interface PageMeta {
   readonly jsonUrl?: string;
   /** Structured data, emitted as one `application/ld+json` block (R-6.4). */
   readonly jsonLd?: unknown;
+  /**
+   * The day this page's data was published, `YYYY-MM-DD`.
+   *
+   * Passed in rather than read from the generated constant, because a module-level import
+   * is fixed when the process starts: `render:site` rewrites `generated/published.ts`
+   * during the run, so pages rendered by that run carried the PREVIOUS run's date while
+   * the sitemap, built from the run's own clock, carried the current one. One publish
+   * apart, visible as a day's disagreement between the footer and `lastmod`.
+   *
+   * Omitted by the Worker, which has no clock worth trusting for this and correctly uses
+   * the constant: by the time a deploy exists, that file holds the date of the render
+   * that produced it.
+   */
+  readonly publishedAt?: string;
 }
 
 function head(meta: PageMeta, site: SiteConfig): string {
@@ -45,6 +59,15 @@ function head(meta: PageMeta, site: SiteConfig): string {
     // Published, linked and crawlable — just not offered to the index (R-1.2, R-1.3).
     meta.noindex ? '<meta name="robots" content="noindex, follow">' : '',
     '<link rel="stylesheet" href="/assets/site.css">',
+    // The Foundation's mark, on every page. Two reasons, and the tab is the smaller of
+    // them: Google prints a favicon beside each result, so without one all 3,459
+    // indexed pages carry a generic globe. `/favicon.ico` is listed because browsers
+    // and crawlers request that exact path unprompted — 133 such requests, all 404,
+    // in the first day the site was measured.
+    '<link rel="icon" href="/favicon.ico" sizes="any">',
+    '<link rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96.png">',
+    '<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192.png">',
+    '<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">',
     meta.jsonUrl
       ? `<link rel="alternate" type="application/json" href="${esc(meta.jsonUrl)}">`
       : '',
@@ -88,7 +111,7 @@ function longDate(iso: string): string {
   return `${Number(d)} ${MONTHS[Number(mo) - 1] ?? mo} ${y}`;
 }
 
-function footer(site: SiteConfig): string {
+function footer(meta: PageMeta, site: SiteConfig): string {
   return lines(
     '<footer class="site-foot"><div class="wrap">',
     `<p>Data from the ${esc(site.publisher)} pedigree database, published by ` +
@@ -100,7 +123,7 @@ function footer(site: SiteConfig): string {
       `<a href="mailto:${esc(site.correctionEmail)}">${esc(site.correctionEmail)}</a> — ` +
       'accepted changes go into the source database and appear here at the next ' +
       'publish.</p>',
-    `<p class="fine">Data last published ${esc(longDate(PUBLISHED_AT))}. ` +
+    `<p class="fine">Data last published ${esc(longDate(meta.publishedAt ?? PUBLISHED_AT))}. ` +
       `<a href="${esc(site.privacyPolicyUrl)}">Privacy policy</a> · ` +
       'This catalogue publishes facts about dogs. Owners, microchip numbers and litter ' +
       'records are not published.</p>',
@@ -122,7 +145,7 @@ export function renderPage(meta: PageMeta, body: string, site: SiteConfig = SITE
     '<main class="wrap">',
     body,
     '</main>',
-    footer(site),
+    footer(meta, site),
     '</body>',
     '</html>',
     '',

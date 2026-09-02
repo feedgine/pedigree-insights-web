@@ -159,9 +159,48 @@ function main(): void {
     }
   }
 
+  // `/favicon.ico` at the root as well as under `assets/`. The `<link>` tags cover
+  // browsers, but that exact path is fetched unprompted by clients that never read the
+  // page — and an icon a crawler cannot find is an icon Google will not print beside
+  // the result.
+  const rootIcon = join('assets', 'favicon.ico');
+  if (existsSync(rootIcon)) copyFileSync(rootIcon, join(opts.out, 'favicon.ico'));
+
   // One stylesheet for the whole site, written once. Pages link to it rather than
   // carrying it, so a design change is one file and not 3,449.
   writeFile(join(opts.out, 'assets', 'site.css'), SITE_CSS);
+
+  // ONE clock reading for the whole run, taken before a single page is rendered, and
+  // threaded into every renderer that states it. Two dates from two `new Date()` calls in
+  // the same build is how the footer and the sitemap came to disagree by a day.
+  const publishedAt = new Date().toISOString();
+  const publishedDay = publishedAt.slice(0, 10);
+
+  // Written as a source file so the Functions bundle carries the same value the static
+  // pages do. Written here, before the pages, because it is committed and read at import
+  // time: a page rendered by this run must not be stamped from the file this run is about
+  // to overwrite. The Worker imports the constant and is right to — by the time a deploy
+  // exists, this file holds the date of the render that produced it.
+  writeFile(
+    'src/generated/published.ts',
+    [
+      '/**',
+      ' * When the catalogue was last published. **Generated — do not edit by hand.**',
+      ' *',
+      ' * Written by `npm run render:site` on every build, and committed, for two reasons.',
+      ' * The footer states it on every page, which answers the question a contributor asks',
+      ' * first — "I sent a correction, why is it not here?" — before they have to ask it.',
+      ' * And the dynamic tier needs the same value as the static tier: baking it into the',
+      ' * Functions bundle at build time costs nothing at request time, where reading it',
+      ' * from D1 would be an extra query on every page view of 59,010 dogs.',
+      ' *',
+      ' * Committed rather than git-ignored so a fresh clone typechecks, and so the history',
+      ' * carries a record of when each publish actually happened.',
+      ' */',
+      `export const PUBLISHED_AT = '${publishedDay}';`,
+      '',
+    ].join('\n'),
+  );
 
   /** Every page this run produced, so the build says what it built. */
   const pages: string[] = [];
@@ -195,7 +234,7 @@ function main(): void {
       continue;
     }
 
-    const html = renderDogPage(payload, undefined, hasPage);
+    const html = renderDogPage(payload, undefined, hasPage, publishedDay);
     // `/dog/<slug>/index.html` rather than `/dog/<slug>.html`: the canonical URL has no
     // extension, and this is the shape that serves it without a redirect.
     writeFile(join(opts.out, 'dog', payload.slug, 'index.html'), html);
@@ -209,42 +248,18 @@ function main(): void {
   // A plain list of what was built: paste a path after localhost to open it.
   writeFile(join(opts.out, 'pages.txt'), `${pages.sort().join('\n')}\n`);
 
-  // The publish date, written as a source file so the Functions bundle carries the same
-  // value the static pages do. Written BEFORE the pages, so a build always stamps them
-  // with the date of that build rather than the one before it.
-  writeFile(
-    'src/generated/published.ts',
-    [
-      '/**',
-      ' * When the catalogue was last published. **Generated — do not edit by hand.**',
-      ' *',
-      ' * Written by `npm run render:site` on every build, and committed, for two reasons.',
-      ' * The footer states it on every page, which answers the question a contributor asks',
-      ' * first — "I sent a correction, why is it not here?" — before they have to ask it.',
-      ' * And the dynamic tier needs the same value as the static tier: baking it into the',
-      ' * Functions bundle at build time costs nothing at request time, where reading it',
-      ' * from D1 would be an extra query on every page view of 59,010 dogs.',
-      ' *',
-      ' * Committed rather than git-ignored so a fresh clone typechecks, and so the history',
-      ' * carries a record of when each publish actually happened.',
-      ' */',
-      `export const PUBLISHED_AT = '${new Date().toISOString().slice(0, 10)}';`,
-      '',
-    ].join('\n'),
-  );
-
   // The site's furniture. Written by the build rather than kept as checked-in files,
   // because every one of them states a number or a date the build is the only thing that
   // knows: how many dogs there are, how many are indexed, when the publish ran.
   const stats = {
     dogs: seen,
     indexed: indexedCount,
-    publishedAt: new Date().toISOString(),
+    publishedAt,
   };
   writeFile(join(opts.out, 'index.html'), renderHome(stats));
   // Not optional: without it Pages answers a missing asset with the home page at status
   // 200, and the Function that serves the dynamic tier cannot tell a miss from a hit.
-  writeFile(join(opts.out, '404.html'), renderNotFound());
+  writeFile(join(opts.out, '404.html'), renderNotFound(undefined, publishedDay));
   writeFile(join(opts.out, 'robots.txt'), robotsTxt());
   writeFile(join(opts.out, 'llms.txt'), llmsTxt(stats));
   writeFile(join(opts.out, '_routes.json'), routesJson());

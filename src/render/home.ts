@@ -194,6 +194,7 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
         `dogs: ancestry, offspring, siblings and DNA test results. Published by ` +
         `${site.publisher} under ${site.dataLicence}.`,
       canonical: `${site.origin}/`,
+      publishedAt: stats.publishedAt.slice(0, 10),
       noindex: false,
       crumbs: [{ label: 'Home' }],
       jsonLd: datasetJsonLd(site, stats),
@@ -215,12 +216,13 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
  *
  * So this is not decoration. It is the signal the routing depends on.
  */
-export function renderNotFound(site: SiteConfig = SITE): string {
+export function renderNotFound(site: SiteConfig = SITE, publishedAt?: string): string {
   return renderPage(
     {
       title: `Not found — ${site.name}`,
       canonical: `${site.origin}/404`,
       noindex: true,
+      publishedAt,
       crumbs: [{ label: 'Home', href: '/' }, { label: 'Not found' }],
     },
     [
