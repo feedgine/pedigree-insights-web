@@ -41,6 +41,7 @@ import type { DogPayload } from '../publish/payload';
 import { renderDogPage } from './dogPage';
 import { llmsTxt, renderHome, renderNotFound, robotsTxt, routesJson, sitemapXml } from './home';
 import { SITE_CSS } from './styles';
+import { headersFile } from './headers';
 
 interface Options {
   payloads: string;
@@ -263,6 +264,9 @@ function main(): void {
   writeFile(join(opts.out, 'robots.txt'), robotsTxt());
   writeFile(join(opts.out, 'llms.txt'), llmsTxt(stats));
   writeFile(join(opts.out, '_routes.json'), routesJson());
+  // Static responses only — the Functions set the same headers themselves, because
+  // Cloudflare Pages does not apply this file to them. See `headers.ts`.
+  writeFile(join(opts.out, '_headers'), headersFile());
   // The sitemap lists the indexed set only — the distinction the whole index rule exists
   // to draw (R-1.2, R-6.1).
   writeFile(join(opts.out, 'sitemap.xml'), sitemapXml(indexedSlugs.sort(), stats.publishedAt));

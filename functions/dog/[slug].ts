@@ -21,6 +21,7 @@ import type { DogPayload } from '../../src/publish/payload';
 import { renderDogPage } from '../../src/render/dogPage';
 import { renderNotFound } from '../../src/render/home';
 import { SITE } from '../../src/render/site';
+import { SECURITY_HEADERS } from '../../src/render/headers';
 
 interface Env {
   /** Bucket holding one JSON payload per dog, keyed as `dog/<shard>/<slug>.json`. */
@@ -44,7 +45,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const notFound = () =>
     new Response(renderNotFound(SITE), {
       status: 404,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
+      headers: {
+        ...SECURITY_HEADERS,
+        'content-type': 'text/html; charset=utf-8',
+      },
     });
 
   const slug = String(context.params.slug ?? '');
@@ -86,6 +90,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   return new Response(html, {
     headers: {
+      ...SECURITY_HEADERS,
       'content-type': 'text/html; charset=utf-8',
       'cache-control': CACHE_CONTROL,
       // The payload's own hash: invalidation becomes per-page and automatic, with no

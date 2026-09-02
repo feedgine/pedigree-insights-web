@@ -13,6 +13,7 @@
  */
 
 import { payloadKey } from '../../../src/publish/constants';
+import { SECURITY_HEADERS } from '../../../src/render/headers';
 
 interface Env {
   PAYLOADS: R2Bucket;
@@ -26,7 +27,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (slug === '' || !/^[a-z0-9-]+$/.test(slug)) {
     return new Response('{"error":"not found"}', {
       status: 404,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
+      headers: {
+        ...SECURITY_HEADERS,
+        'content-type': 'application/json; charset=utf-8',
+      },
     });
   }
 
@@ -45,12 +49,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
     return new Response('{"error":"not found"}', {
       status: 404,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
+      headers: {
+        ...SECURITY_HEADERS,
+        'content-type': 'application/json; charset=utf-8',
+      },
     });
   }
 
   return new Response(object.body, {
     headers: {
+      ...SECURITY_HEADERS,
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'public, max-age=300, s-maxage=86400',
       etag: `"${object.etag}"`,

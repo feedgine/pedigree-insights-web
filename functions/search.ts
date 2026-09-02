@@ -31,6 +31,7 @@ import { formatDmy } from '../src/vendor/pedigree-insights/schema';
 import { esc } from '../src/render/escape';
 import { renderPage } from '../src/render/layout';
 import { SITE } from '../src/render/site';
+import { SECURITY_HEADERS } from '../src/render/headers';
 
 interface Env {
   DB: D1Database;
@@ -203,6 +204,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     ),
     {
       headers: {
+      ...SECURITY_HEADERS,
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'public, max-age=60',
       },
