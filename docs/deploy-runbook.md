@@ -155,7 +155,8 @@ The first run offers to create the project — accept, and choose **Direct Uploa
 prints a `*.pages.dev` URL. Open a dog page there and check it renders before going near
 DNS.
 
-**Republishing later is only this:** section 4, then section 5, then this command.
+**Republishing later is section 9**, which is the only part of this runbook you will
+read again.
 
 ## 7. Bind the stores to the Pages project
 
@@ -184,6 +185,107 @@ the indexed ones work — which is a useful symptom to recognise.
 
 The club's nameservers stay at GoDaddy. Nothing about the WordPress.com site or the club's
 email changes — one subdomain is added and that is all.
+
+
+## 9. Republishing — the routine
+
+Sections 1, 2, 3, 7 and 8 happen once. This is a routine update, start to finish: a few
+corrections merged into the master, or a change to the templates.
+
+### 0. Any migration the live database has not had
+
+```
+ls migrations/
+```
+
+Apply anything newer than the last one you ran, **before** the seed and before the deploy:
+
+```
+npx wrangler d1 execute "$D1_NAME" --remote --file=migrations/000N_name.sql
+```
+
+Every migration is `CREATE TABLE IF NOT EXISTS`, so running one twice is harmless. Skipping
+one is not: the Functions deploy expecting tables that are not there, and the symptom is a
+working site with a broken search.
+
+### 1. The dry run, always
+
+```
+source deploy.local.env
+npm run publish:extract -- --source "$MASTER_DB" --out "$PAYLOAD_DIR" --state "$PUBLISH_STATE" --dry-run
+```
+
+Nothing is written. Four lines are worth reading before anything is:
+
+| Line | What it tells you |
+|---|---|
+| `payloads written` | The real diff — the dogs you edited **plus the ripple**, because the hash covers relatives. A handful means something did not get picked up; tens of thousands means something global moved (a filled column, a template change). |
+| `slugs … moved` | Every rename. Each leaves a 301 — but only for a dog with a registration. **Read this list.** A dog renamed onto a slug another record used to hold gets its registration appended to the URL, which is how `/dog/sakura-show-omoshiroi-otoko-262-0000007` happened. Catching that here is cheap; after publishing it is state-file surgery. |
+| `removed` / `retired` | Dogs that left the file. A retired slug is never reissued. |
+| `DUPLICATE NAMES` | Should be empty. If not, one row is being silently skipped. |
+
+`unchanged 0` is not automatically a bug — look for a global data change first, and check
+the state file only after that.
+
+### 2. Build
+
+```
+npm run publish:extract -- --source "$MASTER_DB" --out "$PAYLOAD_DIR" --state "$PUBLISH_STATE"
+npm run render:site -- --payloads "$PAYLOAD_DIR" --out "$SITE_DIR" --include indexed --clean
+npm run publish:d1 -- --payloads "$PAYLOAD_DIR" --state "$PUBLISH_STATE" --out "$PAYLOAD_DIR/d1/seed.sql"
+```
+
+`publish:d1` rebuilds the **search index** as well as the dog, DNA and redirect tables — a
+corrected name reaches search only through this step. Its report prints the word, suffix
+and pair counts; a sudden change in them without a matching change in `dogs` is worth a
+look.
+
+### 3. Load
+
+```
+rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
+```
+
+The sync sends only what changed and deletes what left. The seed rebuilds its tables in
+full, so re-importing is always safe.
+
+### 4. Deploy
+
+```
+npx wrangler pages deploy "$SITE_DIR" --project-name "$PAGES_PROJECT"
+```
+
+### What you may skip, and when
+
+**If no *indexed* dog changed and no template changed**, skip the render and the deploy:
+those dogs' pages come from R2 through the Function, so R2 and D1 are enough. Use
+`node tools/find-dog.mjs out "<name>"` to see which tier a dog is in. Everything else —
+a template change, a home-page change, a new migration, an indexed dog — needs the full
+sequence.
+
+### After deploying
+
+- The dog you corrected, on the live domain.
+- A renamed dog's old URL, if the run recorded one: expect a 301.
+- Search: a word from the middle of a name (`hovin` must find TÄHTIHOVIN — that is the
+  case the index is built for), and a kennel affix (`abaseiko` → 107).
+- If the render ran: the footer date, the sitemap `lastmod` and
+  `src/generated/published.ts` must all say the same day.
+
+### Never
+
+- **No git through the Cowork bridge**, including `git status`: it leaves a `.git/index.lock`
+  that it cannot remove, and the next `add`/`commit`/`push` all fail.
+- **Never edit `publish-state/state.json` during a run.** The extract reads it at the start
+  and rewrites it at the end; an edit in between is simply lost. Copy it first, edit it
+  between runs.
+- **Never `grep site/` before `render:site`** — you are reading the previous build. It has
+  cost two false alarms already.
+- **Never `d1 execute` without `--remote`**: it succeeds against a local emulation and the
+  site sees nothing.
+
 
 ---
 
