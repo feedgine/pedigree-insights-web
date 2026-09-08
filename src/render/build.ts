@@ -236,10 +236,22 @@ function main(): void {
     }
 
     const html = renderDogPage(payload, undefined, hasPage, publishedDay);
-    // `/dog/<slug>/index.html` rather than `/dog/<slug>.html`: the canonical URL has no
-    // extension, and this is the shape that serves it without a redirect.
-    writeFile(join(opts.out, 'dog', payload.slug, 'index.html'), html);
-    pages.push(`/dog/${payload.slug}/\t${payload.name}`);
+    // `/dog/<slug>.html`, not `/dog/<slug>/index.html`. The intent behind the older
+    // shape was right — the canonical URL carries no extension — but the mechanism was
+    // backwards, and it cost us the whole first fortnight of crawling.
+    //
+    // Cloudflare Pages serves `foo.html` at `/foo` with a 200 and redirects `/foo.html`
+    // to it. Given `foo/index.html` it does the opposite: `/foo/` is the served URL and
+    // `/foo` 308s to it. So every one of the 3,459 URLs in the sitemap — all written
+    // without a slash, matching the canonical — answered with a redirect, and Google
+    // filed them under "Page with redirect" rather than indexing them. The canonical
+    // tag pointed at a URL that redirected back to the page declaring it.
+    //
+    // This way round the redirect still exists but finally points the right way: the
+    // non-canonical `/dog/<slug>/` redirects to the canonical `/dog/<slug>`, which is
+    // what the sitemap, the canonical tag and every internal link already say.
+    writeFile(join(opts.out, 'dog', `${payload.slug}.html`), html);
+    pages.push(`/dog/${payload.slug}\t${payload.name}`);
     written += 1;
     const bytes = Buffer.byteLength(html);
     total += bytes;
