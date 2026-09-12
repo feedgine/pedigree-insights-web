@@ -122,6 +122,7 @@ Three outputs, three destinations:
 | | what | goes to |
 |---|---|---|
 | `out/dog/**` | one JSON payload per dog | R2 |
+| `out/report/**` | one JSON per dog: the Linebreeding and Foundation reports | R2 |
 | `out/d1/seed.sql` | dog index, redirects, DNA results | D1 |
 | `site/` | the indexed pages, home, robots, sitemap, llms.txt | Pages |
 
@@ -133,10 +134,19 @@ synthetic identifiers for the dogs without registrations and can move their link
 ```
 rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+rclone sync "$PAYLOAD_DIR/report" "$RCLONE_REMOTE:$R2_BUCKET/report" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
 
 The first sync uploads about 395 MB and takes a while. Later ones send only what changed.
+
+The second sync is the reports (added 2026-09-11): about **1.75 GB** the first time —
+measured 1,743.8 MB over 62,818 dogs, the largest 180 KB — so expect it to take several
+times as long as the payloads did. It is one prefix of the same bucket, so no new store, no
+new binding. Later syncs send only the reports whose content changed; a report changes
+whenever any ancestor within twenty generations does, so a rename deep in the old lines
+touches more reports than pages.
 
 `--transfers 32` is worth the flag: the default of 4 turns a ten-minute upload into an
 hour. Measured on the first real run: **62,469 objects, 322.7 MiB, 10m25s.**
@@ -245,6 +255,8 @@ look.
 ```
 rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+rclone sync "$PAYLOAD_DIR/report" "$RCLONE_REMOTE:$R2_BUCKET/report" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
 
@@ -264,6 +276,39 @@ those dogs' pages come from R2 through the Function, so R2 and D1 are enough. Us
 `node tools/find-dog.mjs out "<name>"` to see which tier a dog is in. Everything else —
 a template change, a home-page change, a new migration, an indexed dog — needs the full
 sequence.
+
+**And anything that changes where the build writes files.** This is the third case, and
+it is easy to miss because it is neither a dog nor a template: the file layout inside
+`site/` decides which URL Cloudflare Pages treats as the real one. Given
+`dog/<slug>.html` it serves `/dog/<slug>` with a 200 and redirects `/dog/<slug>.html`
+to it; given `dog/<slug>/index.html` it does the reverse, serving `/dog/<slug>/` and
+308ing `/dog/<slug>` to that. Nothing in the rendered HTML differs between the two — the
+difference is only visible from outside, as a redirect.
+
+That is not hypothetical. From launch until 2026-09-08 the build wrote
+`dog/<slug>/index.html` while the sitemap, the canonical tags and every internal link
+used the extensionless form, so all 3,659 sitemap URLs answered with a redirect and each
+page's canonical pointed at a URL that redirected back to it. Search Console filed them
+under "Page with redirect" instead of indexing them. The fix was one line in
+`build.ts` — and it needed a full render and deploy, because the pages themselves had
+not changed at all, only their names.
+
+**How to check after any such change**, before assuming it worked:
+
+```
+curl -sI https://pedigree.japanesespitz.org/dog/adam | head -3          # expect 200
+curl -sI https://pedigree.japanesespitz.org/dog/adam/ | head -3         # expect 301/308 to /dog/adam
+```
+
+The rule the two commands encode: the URL in the sitemap must answer 200, and every
+other spelling of it must redirect **towards** that URL, never away from it.
+
+One consequence worth knowing when you flip a URL shape: the old redirect was a **308,
+which browsers cache permanently**. Anyone who visited a page before the change holds
+"old → new" in their cache while the server now answers "new → old", and their browser
+shows a redirect loop. The server is fine; it clears with a hard reload or as the cache
+expires, and Googlebot is unaffected because it re-evaluates redirects on each crawl.
+Check in a private window before believing the site is broken.
 
 ### After deploying
 

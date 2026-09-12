@@ -114,6 +114,9 @@ Two properties are held by tests rather than by care:
 | `slug.ts` / `slugMap.ts` | The candidate slug; and the assignment that keeps URLs working. |
 | `indexRule.ts` | Which pages are offered to search engines. One file, because it is scheduled to be revisited. |
 | `payload.ts` | Everything one page needs, plus the content hash. |
+| `reports.ts` | The Linebreeding and Foundation reports for one dog — the layered walk, cycle handling, the report hash. |
+| `reportModel.ts` | The report payload's shape and the arithmetic that turns a stored row into columns (no Node dependency: the Worker renders from it). |
+| `foundationDogs.ts` | The site's foundation list — the 55 Japanese exports. Edit to change the Foundation report everywhere. |
 | `index.ts` | The command, and the run report. |
 
 ## Things worth knowing before changing it
@@ -128,3 +131,36 @@ Two properties are held by tests rather than by care:
 - **The kennel is the `Breeder` field as stored**, not the first word of the dog's name.
   Names in this breed begin with a kennel affix, but deriving a hub from that is a guess;
   the breeder field is what the source actually records.
+
+## The reports (added 2026-09-11)
+
+Every dog also gets a **report payload** — `out/report/<shard>/<slug>.json`, one object
+holding the Linebreeding report (twenty generations, two crosses or more) and the Foundation
+report (the site's 55 founders, all generations). The two pages `/dog/<slug>/linebreeding`
+and `/dog/<slug>/foundation` are rendered from it by a Pages Function; there is no static
+tier for reports and they are `noindex`.
+
+Three things to know:
+
+- **The walk is layered, not path-enumerating.** The desktop's `analyzeLinebreeding` lists
+  every occurrence path, which is right for one dog on demand and wrong for 62,818 dogs in
+  a batch (the most line-bred dog has 819,295 crosses within twenty generations). The
+  publish uses the memoised, generation-by-generation walk the desktop already uses for
+  the Foundation report, carrying path counts per (ancestor, generation, side). Same
+  columns, same numbers — `tests/unit/reports.test.ts` proves it row for row against the
+  vendored walk. Measured: 74 s for the whole catalogue.
+- **Rows store counts, pages derive columns.** A row is `name, slug, sex, coi, occ` where
+  `occ` is `[generation, sire-side paths, dam-side paths]`; crosses, lines, closest, Blood %
+  and Influence are computed from it where shown (`reportModel.ts`). Measured on the real
+  catalogue: 1.74 GB in R2 instead of 2.96 GB, for the same page.
+- **Reports have their own manifest** (`reports` in `state.json`) and their own
+  written/unchanged counts. A report changes when any ancestor within twenty generations
+  changes, which the four-generation page payload does not, so the two are tracked apart.
+
+Cycles — a dog within its own ancestry — are found once over the whole population and the
+closing edge is read as unrecorded, as the desktop's genetics step does; the run report and
+the affected pages both say so. The real catalogue has none (2026-09-11).
+
+`tools/measure-reports.ts` reproduces the measurements from `out/dog/` without touching
+the master, and can dump one dog's report for inspection.
+

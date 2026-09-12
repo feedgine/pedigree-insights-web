@@ -9,6 +9,7 @@
     "sourceFields.ts",
     "pedigreeAlgorithm.ts",
     "genetics.ts",
-    "queries.ts"
+    "queries.ts",
+    "contribution.ts"
   ]
 }

@@ -23,11 +23,21 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { payloadKey } from './constants';
+import { payloadKey, reportKey } from './constants';
 import { fileDigest, loadPopulation } from './source';
 import { buildRelations } from './relations';
 import { producers, producersWithCompletePedigree } from './indexRule';
 import { buildPayload, contentHash, stableStringify, type DogPayload } from './payload';
+import {
+  brokenEdgesOf,
+  buildReports,
+  findCycleEdges,
+  reportHash,
+  unmatchedFoundationDogs,
+  withoutCycles,
+  type DogReports,
+  type ReportContext,
+} from './reports';
 import {
   assignSlugs,
   emptySlugState,
@@ -100,6 +110,19 @@ function payloadPath(out: string, slug: string): string {
   return join(out, payloadKey(slug));
 }
 
+/** Where one dog's reports live on disk — likewise the R2 key. */
+function reportPath(out: string, slug: string): string {
+  return join(out, reportKey(slug));
+}
+
+function removeIfPresent(file: string): void {
+  try {
+    rmSync(file);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+  }
+}
+
 function writeFile(file: string, contents: string): void {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, contents);
@@ -129,6 +152,16 @@ interface RunReport {
   readonly firstRun: boolean;
   readonly largestPayloadBytes: number;
   readonly totalPayloadBytes: number;
+  /** The Linebreeding + Foundation reports, one object per dog, tracked separately. */
+  readonly reportsWritten: number;
+  readonly reportsUnchanged: number;
+  readonly reportsRestored: number;
+  readonly largestReportBytes: number;
+  readonly totalReportBytes: number;
+  /** Foundation-list names that match no record — a misspelling, or a dog since renamed. */
+  readonly foundationUnmatched: readonly string[];
+  /** Parent edges that close a cycle in the master — data errors, broken for the reports. */
+  readonly pedigreeCycles: readonly { child: string; parent: string; relation: string }[];
 }
 
 async function main(): Promise<void> {
@@ -160,6 +193,13 @@ async function main(): Promise<void> {
     const parsed = JSON.parse(raw) as { manifest?: Manifest };
     return parsed.manifest ?? {};
   });
+  // The reports have their own manifest: they change when a distant ancestor does, which
+  // the page payload (four generations, own relatives) does not, and they are several
+  // times its size — so they are written, and skipped, on their own account.
+  const previousReports = readJson<Manifest>(statePath, {}, (raw) => {
+    const parsed = JSON.parse(raw) as { reports?: Manifest };
+    return parsed.reports ?? {};
+  });
   const firstRun = Object.keys(previousState.assignments).length === 0;
 
   const { slugByKey, state, report: slugReport } = assignSlugs(population.animals, previousState);
@@ -176,13 +216,30 @@ async function main(): Promise<void> {
     isIndexed: rule.isIndexed.bind(rule),
   };
 
+  // Cycles are found once over the whole population and the closing edges are read as
+  // unrecorded by every report — see reports.ts for why a layered walk needs this.
+  const pedigreeCycles = findCycleEdges(population.animals, population.lookup);
+  const broken = brokenEdgesOf(pedigreeCycles);
+  const rctx: ReportContext = {
+    lookup: withoutCycles(population.lookup, broken),
+    slugByKey,
+    broken,
+  };
+  const foundationUnmatched = unmatchedFoundationDogs(population.lookup);
+
   const manifest: Manifest = {};
+  const reportsManifest: Manifest = {};
   let written = 0;
   let unchanged = 0;
   let restored = 0;
   let indexed = 0;
   let largestPayloadBytes = 0;
   let totalPayloadBytes = 0;
+  let reportsWritten = 0;
+  let reportsUnchanged = 0;
+  let reportsRestored = 0;
+  let largestReportBytes = 0;
+  let totalReportBytes = 0;
 
   for (const animal of population.animals) {
     const payload: DogPayload = buildPayload(ctx, animal);
@@ -200,6 +257,23 @@ async function main(): Promise<void> {
     // incomplete publish: the state says "already written", the file is not there, and
     // nothing notices. Roughly 62,000 stat calls — a few hundred milliseconds against a
     // run measured in minutes, for a failure mode that is invisible.
+    const reports: DogReports = buildReports(rctx, animal);
+    const reportsJson = `${stableStringify(reports)}\n`;
+    const reportsDigest = reportHash(reports);
+    reportsManifest[payload.slug] = reportsDigest;
+    const reportBytes = Buffer.byteLength(reportsJson);
+    totalReportBytes += reportBytes;
+    if (reportBytes > largestReportBytes) largestReportBytes = reportBytes;
+
+    const reportFile = reportPath(opts.out, payload.slug);
+    if (previousReports[payload.slug] === reportsDigest && (opts.dryRun || existsSync(reportFile))) {
+      reportsUnchanged += 1;
+    } else {
+      if (previousReports[payload.slug] === reportsDigest) reportsRestored += 1;
+      reportsWritten += 1;
+      if (!opts.dryRun) writeFile(reportFile, reportsJson);
+    }
+
     const file = payloadPath(opts.out, payload.slug);
     if (previousManifest[payload.slug] === hash) {
       if (opts.dryRun || existsSync(file)) {
@@ -216,12 +290,9 @@ async function main(): Promise<void> {
   // redirect table, which is why the slug is retired rather than freed.
   const removed = Object.keys(previousManifest).filter((slug) => manifest[slug] === undefined);
   if (!opts.dryRun) {
-    for (const slug of removed) {
-      try {
-        rmSync(payloadPath(opts.out, slug));
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-      }
+    for (const slug of removed) removeIfPresent(payloadPath(opts.out, slug));
+    for (const slug of Object.keys(previousReports)) {
+      if (reportsManifest[slug] === undefined) removeIfPresent(reportPath(opts.out, slug));
     }
   }
 
@@ -255,12 +326,23 @@ async function main(): Promise<void> {
     firstRun,
     largestPayloadBytes,
     totalPayloadBytes,
+    reportsWritten,
+    reportsUnchanged,
+    reportsRestored,
+    largestReportBytes,
+    totalReportBytes,
+    foundationUnmatched,
+    pedigreeCycles,
   };
 
   if (!opts.dryRun) {
     writeFile(
       statePath,
-      `${JSON.stringify({ slugs: JSON.parse(serialiseSlugState(state)), manifest }, null, 2)}\n`,
+      `${JSON.stringify(
+        { slugs: JSON.parse(serialiseSlugState(state)), manifest, reports: reportsManifest },
+        null,
+        2,
+      )}\n`,
     );
     writeFile(join(opts.out, 'redirects.json'), `${JSON.stringify(state.redirects, null, 2)}\n`);
     writeFile(join(opts.out, 'run-report.json'), `${JSON.stringify(runReport, null, 2)}\n`);
@@ -275,6 +357,8 @@ async function main(): Promise<void> {
     `indexed           ${indexed}  ${pct(indexed)}`,
     `payloads written  ${written}   unchanged ${unchanged}   removed ${removed.length}`,
     `payload size      largest ${largestPayloadBytes} B, total ${(totalPayloadBytes / 1e6).toFixed(1)} MB`,
+    `reports written   ${reportsWritten}   unchanged ${reportsUnchanged}`,
+    `report size       largest ${largestReportBytes} B, total ${(totalReportBytes / 1e6).toFixed(1)} MB`,
     `slugs             ${slugReport.assigned} new, ${slugReport.moved.length} moved, ` +
       `${slugReport.collisions.length} collisions, ${slugReport.retired} retired`,
     `no registration   ${slugReport.withoutRegistration}  (cannot be followed through a rename)`,
@@ -289,6 +373,21 @@ async function main(): Promise<void> {
     lines.push(
       `restored          ${restored} payload(s) the state believed were written were missing ` +
         'from the output directory',
+    );
+  }
+  if (reportsRestored > 0) {
+    lines.push(`restored reports  ${reportsRestored} report(s) were missing from the output directory`);
+  }
+  if (foundationUnmatched.length > 0) {
+    lines.push(
+      `FOUNDATION LIST   ${foundationUnmatched.length} name(s) match no record and read as absent ` +
+        `everywhere: ${foundationUnmatched.join(', ')}`,
+    );
+  }
+  if (pedigreeCycles.length > 0) {
+    lines.push(
+      `PEDIGREE CYCLES   ${pedigreeCycles.length} dog(s) within their own ancestry; the closing edge ` +
+        'is read as unrecorded by the reports — see run-report.json',
     );
   }
   if (firstRun) lines.push('first run         no previous state was found — every URL is new');

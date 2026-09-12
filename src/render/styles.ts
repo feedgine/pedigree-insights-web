@@ -179,9 +179,44 @@ ul.plain li { margin: 0 0 8px; }
 .pager span { color: var(--ink-faint); }
 .pager .pager-where { margin-left: auto; margin-right: auto; }
 
+/* The two report links under the bracket. */
+p.reports { font-size: 14px; color: var(--ink-soft); margin: 14px 0 0; }
+
 table.dna { border-collapse: collapse; font-size: 15px; }
 table.dna th, table.dna td { text-align: left; padding: 4px 22px 4px 0; border-bottom: 1px solid var(--rule); }
 table.dna th { font-weight: 500; color: var(--ink-faint); }
+`;
+
+const REPORT_CSS = `
+/* ---- reports (Linebreeding, Foundation) ---------------------------------
+   The desktop's tables on a page: dense, numeric columns right-aligned, the
+   name column carrying the sex dot the desktop uses. Wide tables scroll inside
+   their own box, like the bracket, so the page never scrolls sideways. */
+.report-subject { padding-bottom: 14px; }
+.report-kind { font-size: 15px; color: var(--ink-soft); margin: 2px 0 0; }
+.report-nav { font-size: 14px; padding: 10px 0 0; }
+.report-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.report-nav [aria-current] { font-weight: 600; }
+ul.report-stats { list-style: none; margin: 0 0 14px; padding: 0; font-size: 15px; }
+ul.report-stats li { margin: 0 0 4px; }
+.report-count { font-size: 13px; color: var(--ink-faint); margin: 0 0 8px; }
+.report-warn { border: 1px solid #c9a227; background: #fff8e1; border-radius: var(--radius); padding: 10px 14px; margin: 0 0 14px; font-size: 14px; }
+.report-warn p { margin: 0 0 6px; }
+.report-warn ul { margin: 0; padding-left: 18px; }
+.table-scroll { overflow-x: auto; padding-bottom: 10px; }
+table.report { border-collapse: collapse; font-size: 14px; width: 100%; }
+table.report th, table.report td { padding: 4px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; white-space: nowrap; }
+table.report th { font-weight: 500; color: var(--ink-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; background: var(--paper-soft); }
+table.report th.num, table.report td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.report td.name { white-space: normal; min-width: 16rem; }
+table.report td.crosses { white-space: normal; max-width: 28rem; font-size: 13px; color: var(--ink-soft); }
+table.report .split { color: var(--ink-faint); font-size: 12px; }
+table.report .final { color: var(--ink-faint); }
+table.report tr.absent td { color: var(--ink-faint); }
+.sex { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--ink-faint); }
+.sex-M { background: #4a78b5; }
+.sex-F { background: #c2618f; }
+.empty { color: var(--ink-soft); }
 `;
 
 const FOOT_CSS = `
@@ -205,7 +240,9 @@ const PRINT_CSS = `
   .bracket { --row-h: 26px; }
   .cell .nm { font-size: 9pt; }
   .cell .tt, .cell .dt { font-size: 7.5pt; }
-  .site-head, .site-search, .crumbs, .site-foot .fine { display: none; }
+  .site-head, .site-search, .crumbs, .site-foot .fine, .report-nav, p.reports { display: none; }
+  .table-scroll { overflow: visible; }
+  table.report { font-size: 9pt; }
   .subject-photo, figure.photo { display: none !important; }
   body { font-size: 11pt; }
   .bracket-scroll { overflow: visible; }
@@ -217,4 +254,4 @@ const PRINT_CSS = `
 `;
 
 /** The whole stylesheet, written once to `/assets/site.css`. */
-export const SITE_CSS = [BASE_CSS, BRACKET_CSS, SECTION_CSS, FOOT_CSS, PRINT_CSS].join('\n');
+export const SITE_CSS = [BASE_CSS, BRACKET_CSS, SECTION_CSS, REPORT_CSS, FOOT_CSS, PRINT_CSS].join('\n');

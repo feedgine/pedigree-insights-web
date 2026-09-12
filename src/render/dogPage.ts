@@ -17,6 +17,7 @@
 
 import { formatDmy } from '../vendor/pedigree-insights/schema';
 import type { DogPayload, DogRef } from '../publish/payload';
+import { LINEBREEDING_GENERATIONS } from '../publish/constants';
 import { renderBracket } from './bracket';
 import { esc, lines } from './escape';
 import { dogJsonLd } from './jsonld';
@@ -106,12 +107,13 @@ function subjectCard(payload: DogPayload, site: SiteConfig): string {
     ['Breeder', s.breeder],
     ['Country of origin', s.country],
     ['Other name', s.callName],
-    // The stored COI is a fraction; it is shown as the percentage a breeder expects — and
-    // never without its generation depth, because the same dog scores differently over
-    // five generations and over ten, and a figure that cannot be compared invites being
-    // compared anyway.
+    // The stored COI is a fraction; it is shown as the percentage a breeder expects, and
+    // labelled as the full-depth value (owner wording, 2026-09-11): it was computed over
+    // the whole recorded pedigree — measured, see `site.coiGenerations` — so no
+    // generation count is the honest label, and a figure that cannot be compared invites
+    // being compared anyway.
     [
-      `Inbreeding coefficient (${site.coiGenerations} generations)`,
+      'Inbreeding coefficient (full-depth value)',
       s.coi == null ? undefined : `${(s.coi * 100).toFixed(2)}%`,
     ],
   ];
@@ -234,6 +236,22 @@ function contextSection(payload: DogPayload, site: SiteConfig): string {
   );
 }
 
+/**
+ * The reports computed for this dog at publish (PRD §6.10, brought forward to the public
+ * catalogue on the owner's instruction, 2026-09-11): Linebreeding over twenty generations
+ * and the Foundation dogs. Every published dog has a report object, so the links always
+ * resolve; they are offered only where there is a pedigree to report on — a dog with no
+ * recorded parent has an empty report, and an empty report is an absence (R-2.9).
+ */
+function reportLinks(payload: DogPayload): string {
+  if (payload.bracket.length <= 1) return '';
+  return (
+    '<p class="reports">Reports: ' +
+    `<a href="/dog/${esc(payload.slug)}/linebreeding">Linebreeding (${LINEBREEDING_GENERATIONS} generations)</a> · ` +
+    `<a href="/dog/${esc(payload.slug)}/foundation">Foundation dogs</a></p>`
+  );
+}
+
 /** The pedigree bracket section (R-2.3). Always four generations, blanks and all. */
 function bracketSection(payload: DogPayload, hasPage: HasPage): string {
   const bracket = renderBracket(payload.bracket, hasPage);
@@ -241,6 +259,7 @@ function bracketSection(payload: DogPayload, hasPage: HasPage): string {
     '<section id="pedigree">',
     '<h2>Pedigree</h2>',
     bracket,
+    reportLinks(payload),
     '</section>',
   );
 }

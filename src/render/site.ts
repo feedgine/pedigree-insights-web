@@ -40,14 +40,19 @@ export interface SiteConfig {
    * How many generations the stored inbreeding coefficient was computed over.
    *
    * A COI is not comparable without its depth — the same dog scores differently at five
-   * generations and at ten — so the figure is never shown without this number beside it.
+   * generations and at ten. The pages label the figure "full-depth value" (owner wording,
+   * 2026-09-11); the number here is what the JSON-LD states as
+   * `pdg:inbreedingCoefficientGenerations`.
    *
-   * It is a BreedMate application setting ("Max generations for inbreeding calculation")
-   * and is NOT recorded anywhere in the `.db`, so it cannot be read from the master and
-   * has to live here. The value was recovered from the data itself on 2026-09-02: the
-   * stored AVK is `distinct ancestors within N generations / (2^(N+1) − 2)`, and sweeping
-   * N over a 400-dog sample puts the error at exactly zero for N = 10 and nowhere else.
-   * **If the setting is ever changed in BreedMate, change it here in the same hour** —
+   * Not recorded anywhere in the `.db`, so it has to live here, and it was MEASURED, not
+   * assumed. On 2026-09-11 the vendored genetics engine recomputed COI for 200 deep dogs
+   * over pedigrees truncated at 5/10/15/20/25/all generations: at 10 only 1 of 200 matched
+   * the stored value (median error 1.2 percentage points); at 20 all 200 matched to
+   * 5e-7, and nothing changes beyond 20 (evidence: `reports-measure-2026-09-11/`). An
+   * earlier note put this at 10, inferred from the stored AVK's denominator — that
+   * inference holds for AVK (not published) and was wrong for COI; the owner's own
+   * statement that COI was calculated deep was correct.
+   * **If the calculation is ever redone at another depth, change this in the same hour** —
    * nothing in the pipeline can detect the difference.
    */
   readonly coiGenerations: number;
@@ -94,7 +99,7 @@ export const SITE: SiteConfig = {
   dataLicence: 'CC BY-NC-SA 4.0',
   dataLicenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
   breed: 'Japanese Spitz',
-  coiGenerations: 10,
+  coiGenerations: 20,
   banners: [
     {
       image: '/assets/dna-tests-banner.webp',
@@ -120,4 +125,14 @@ export function dogUrl(site: SiteConfig, slug: string): string {
 /** The JSON representation of a dog (R-6.6). */
 export function dogJsonUrl(site: SiteConfig, slug: string): string {
   return `${site.origin}/api/dog/${slug}.json`;
+}
+
+/** The reports a dog page links to, by their path segment. */
+export type ReportKind = 'linebreeding' | 'foundation';
+
+export const REPORT_KINDS: readonly ReportKind[] = ['linebreeding', 'foundation'];
+
+/** The canonical URL of one of a dog's reports: `/dog/<slug>/linebreeding`. */
+export function reportUrl(site: SiteConfig, slug: string, kind: ReportKind): string {
+  return `${site.origin}/dog/${slug}/${kind}`;
 }

@@ -42,6 +42,9 @@ below for where those documents live.
   indexed read and a template.
 - **Two delivery tiers.** Dogs offered to search engines are written as static files;
   every other dog is published, linked and crawlable, and rendered on request.
+- **Reports from the dog page.** Every dog page links to its Linebreeding report (twenty
+  generations) and its Foundation report (the breed's founding exports), computed at
+  publish like everything else and rendered on request.
 - **Genetics are not reimplemented here.** The pure modules from PedigreeInsights
   (`src/lib/`) are database-agnostic and are reused as they are, so a web report cannot
   disagree with the desktop application.

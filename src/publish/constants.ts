@@ -34,3 +34,29 @@ export function payloadKey(slug: string): string {
   const shard = slug.slice(0, 2).padEnd(2, '_');
   return `dog/${shard}/${slug}.json`;
 }
+
+/**
+ * Generations the Linebreeding report walks (owner decision, 2026-09-11).
+ *
+ * Twenty, the desktop application's ceiling, not the ten the stored COI uses. The report
+ * exists to make old repeated lines visible — the Swedish club's reviewer reads a pedigree
+ * from the oldest generation forward, and her example dog appears up to ten times in
+ * modern pedigrees, none of it visible at five generations. Measured on the real
+ * catalogue before deciding: 45,820 of 62,818 dogs have a repeated ancestor within
+ * twenty generations, 194 rows on average, 1,249 at most.
+ */
+export const LINEBREEDING_GENERATIONS = 20;
+
+/** Ancestors with fewer crosses than this are counted in the totals but not listed. */
+export const LINEBREEDING_MIN_CROSSES = 2;
+
+/**
+ * Where a dog's report payload lives — the Linebreeding and Foundation reports, computed
+ * once at publish. A separate object from the page payload, sharded the same way, so the
+ * page payload (and the public `/api/dog/<slug>.json`, which returns it verbatim) is not
+ * changed by a report that is several times its size.
+ */
+export function reportKey(slug: string): string {
+  const shard = slug.slice(0, 2).padEnd(2, '_');
+  return `report/${shard}/${slug}.json`;
+}
