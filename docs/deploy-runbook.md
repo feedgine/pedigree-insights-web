@@ -222,8 +222,14 @@ working site with a broken search.
 
 ```
 source deploy.local.env
+npm run foundation:check
 npm run publish:extract -- --source "$MASTER_DB" --out "$PAYLOAD_DIR" --state "$PUBLISH_STATE" --dry-run
 ```
+
+`foundation:check` compares `src/publish/foundationDogs.ts` with the hub's
+`foundation-japanese-spitz-exports.txt` (`$FOUNDATION_LIST`) and fails on any difference —
+the list lives in those two places by design (one for the desktop import, one for the
+site) and nothing else keeps them together.
 
 Nothing is written. Four lines are worth reading before anything is:
 
@@ -231,7 +237,8 @@ Nothing is written. Four lines are worth reading before anything is:
 |---|---|
 | `payloads written` | The real diff — the dogs you edited **plus the ripple**, because the hash covers relatives. A handful means something did not get picked up; tens of thousands means something global moved (a filled column, a template change). |
 | `slugs … moved` | Every rename. Each leaves a 301 — but only for a dog with a registration. **Read this list.** A dog renamed onto a slug another record used to hold gets its registration appended to the URL, which is how `/dog/sakura-show-omoshiroi-otoko-262-0000007` happened. Catching that here is cheap; after publishing it is state-file surgery. |
-| `removed` / `retired` | Dogs that left the file. A retired slug is never reissued. |
+| `merges` | Renamed dogs that inherited the URL of a same-named record removed in this run — a de-duplication seen from the pipeline's side. Check each is really one dog; the alternative reading (a dog deleted and a different dog renamed onto its exact name in the same edit) is rare but possible. |
+| `removed` / `retired` | Dogs that left the file. A retired slug is never reissued, except to a merge survivor (above). |
 | `DUPLICATE NAMES` | Should be empty. If not, one row is being silently skipped. |
 
 `unchanged 0` is not automatically a bug — look for a global data change first, and check

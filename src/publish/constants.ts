@@ -60,3 +60,16 @@ export function reportKey(slug: string): string {
   const shard = slug.slice(0, 2).padEnd(2, '_');
   return `report/${shard}/${slug}.json`;
 }
+
+/**
+ * Where the foundation list itself lives in R2, beside the reports.
+ *
+ * The Foundation page lists the absent founders from the list, not from the report (an
+ * "absent" row on 62,866 reports would be 140 MB of nothing). If that list were only the
+ * constant compiled into the Worker, a change to it would wait for the next deploy while
+ * the reports had already changed — which happened on 2026-09-12: "28 of 55" on a page
+ * whose data already knew 54. So the publish writes the list here, the report sync
+ * carries it, and the page reads the list that matches the reports beside it.
+ */
+export const FOUNDATION_LIST_KEY = 'report/_foundation.json';
+

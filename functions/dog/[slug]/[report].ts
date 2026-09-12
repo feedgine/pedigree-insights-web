@@ -14,9 +14,10 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
-import { reportKey } from '../../../src/publish/constants';
+import { FOUNDATION_LIST_KEY, reportKey } from '../../../src/publish/constants';
+import { FOUNDATION_DOGS } from '../../../src/publish/foundationDogs';
 import type { DogReports } from '../../../src/publish/reports';
-import { renderReportPage } from '../../../src/render/reportPage';
+import { renderFoundationPage, renderLinebreedingPage } from '../../../src/render/reportPage';
 import { renderNotFound } from '../../../src/render/home';
 import { REPORT_KINDS, SITE, type ReportKind } from '../../../src/render/site';
 import { SECURITY_HEADERS } from '../../../src/render/headers';
@@ -57,7 +58,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const reports = (await object.json()) as DogReports;
-  const html = renderReportPage(kind as ReportKind, reports, SITE, () => true);
+
+  let html: string;
+  if ((kind as ReportKind) === 'linebreeding') {
+    html = renderLinebreedingPage(reports, SITE, () => true);
+  } else {
+    // The founder list is read from the bucket, where the publish put it beside the
+    // reports, so the page's "of N" and its absent rows always match the data it renders.
+    // The compiled constant is only the fallback for a bucket that predates the list file.
+    const list = await context.env.PAYLOADS.get(FOUNDATION_LIST_KEY);
+    const names =
+      list === null ? FOUNDATION_DOGS : ((await list.json()) as { names: string[] }).names;
+    html = renderFoundationPage(reports, SITE, () => true, undefined, names);
+  }
 
   return new Response(html, {
     headers: {

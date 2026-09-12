@@ -8,6 +8,8 @@ import {
 import { dog, sampleKennel } from '../helpers/dogs.ts';
 
 const slugFor = (r: ReturnType<typeof assignSlugs>, key: string) => r.slugByKey.get(key);
+/** What the publish passes: the slugs that had a page in the previous run. */
+const published = (r: ReturnType<typeof assignSlugs>) => new Set(r.slugByKey.values());
 
 describe('slug assignment', () => {
   it('gives every dog a slug and repeats itself exactly on a second run', () => {
@@ -167,5 +169,72 @@ describe('a dog that gains a registration', () => {
     const first = assignSlugs([dog('KOU', { registration: 'FI1/99' })]);
     const second = assignSlugs([dog('KOU', { registration: 'FI1/99' })], first.state);
     expect(second.report.registrationsAdopted).toBe(0);
+  });
+});
+
+describe('a merge of two records', () => {
+  // Round one: the same dog twice — a misspelt record with the registration, and a
+  // correctly spelt one without. Round two: the owner keeps the registered record, gives
+  // it the correct name, and deletes the other.
+  const before = [
+    dog('TAKE OH OF YOKAHAMA TAKADA', { registration: 'DK05461/85' }),
+    dog('TAKE OH OF YOKOHAMA TAKADA'),
+    dog('BYSTANDER', { registration: 'B-1' }),
+  ];
+  const after = [
+    dog('TAKE OH OF YOKOHAMA TAKADA', { registration: 'DK05461/85' }),
+    dog('BYSTANDER', { registration: 'B-1' }),
+  ];
+
+  it('lets the surviving record inherit the clean URL, with a redirect from its old one', () => {
+    const first = assignSlugs(before);
+    expect(slugFor(first, 'take oh of yokahama takada')).toBe('take-oh-of-yokahama-takada');
+    expect(slugFor(first, 'take oh of yokohama takada')).toBe('take-oh-of-yokohama-takada');
+
+    const second = assignSlugs(after, first.state, published(first));
+    expect(slugFor(second, 'take oh of yokohama takada')).toBe('take-oh-of-yokohama-takada');
+    expect(second.report.collisions).toEqual([]);
+    expect(second.report.merged).toEqual([
+      { slug: 'take-oh-of-yokohama-takada', name: 'TAKE OH OF YOKOHAMA TAKADA', from: 'syn:x-000001' },
+    ]);
+    expect(second.report.moved).toEqual([
+      { from: 'take-oh-of-yokahama-takada', to: 'take-oh-of-yokohama-takada', name: 'TAKE OH OF YOKOHAMA TAKADA' },
+    ]);
+    expect(second.state.redirects['take-oh-of-yokahama-takada']).toBe('take-oh-of-yokohama-takada');
+    // One holder for the slug: the dead identity is gone from the assignments.
+    expect(second.state.assignments['syn:x-000001']).toBeUndefined();
+    expect(second.state.assignments['reg:DK05461/85']).toBe('take-oh-of-yokohama-takada');
+    expect(second.report.retired).toBe(0);
+    // And a third run is a no-op.
+    const third = assignSlugs(after, second.state, published(second));
+    expect(third.report.moved).toEqual([]);
+    expect(third.report.merged).toEqual([]);
+    expect(serialiseSlugState(third.state)).toBe(serialiseSlugState(second.state));
+  });
+
+  it('never lets a brand-new record inherit a departed dog’s URL', () => {
+    const first = assignSlugs([dog('OLD DOG', { registration: 'R-1' })]);
+    const second = assignSlugs([dog('OLD DOG', { registration: 'R-2' })], first.state, published(first));
+    expect(slugFor(second, 'old dog')).toBe('old-dog-r-2');
+    expect(second.report.merged).toEqual([]);
+    expect(second.report.assigned).toBe(1);
+  });
+
+  it('never reissues a slug that was retired in an earlier run', () => {
+    const one = assignSlugs([dog('ALFA', { registration: 'A' }), dog('BETA', { registration: 'B' })]);
+    // ALFA leaves; the slug is retired.
+    const two = assignSlugs([dog('BETA', { registration: 'B' })], one.state, published(one));
+    expect(two.report.retired).toBe(1);
+    // A run later, BETA is renamed ALFA: not the same edit, so not a merge.
+    const three = assignSlugs([dog('ALFA', { registration: 'B' })], two.state, published(two));
+    expect(slugFor(three, 'alfa')).toBe('alfa-b');
+    expect(three.report.merged).toEqual([]);
+  });
+
+  it('recognises no merge when the publish does not say what was published', () => {
+    const first = assignSlugs(before);
+    const second = assignSlugs(after, first.state);
+    expect(slugFor(second, 'take oh of yokohama takada')).toBe('take-oh-of-yokohama-takada-dk05461-85');
+    expect(second.report.merged).toEqual([]);
   });
 });

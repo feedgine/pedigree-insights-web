@@ -23,7 +23,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { payloadKey, reportKey } from './constants';
+import { FOUNDATION_LIST_KEY, payloadKey, reportKey } from './constants';
+import { FOUNDATION_DOGS } from './foundationDogs';
 import { fileDigest, loadPopulation } from './source';
 import { buildRelations } from './relations';
 import { producers, producersWithCompletePedigree } from './indexRule';
@@ -149,6 +150,8 @@ interface RunReport {
   readonly retiredSlugs: number;
   /** Dogs given a registration this run that kept the URL they already had. */
   readonly registrationsAdopted: number;
+  /** Renamed dogs that inherited the URL of a same-named record removed in the same run. */
+  readonly merges: readonly { slug: string; name: string; from: string }[];
   readonly firstRun: boolean;
   readonly largestPayloadBytes: number;
   readonly totalPayloadBytes: number;
@@ -202,7 +205,11 @@ async function main(): Promise<void> {
   });
   const firstRun = Object.keys(previousState.assignments).length === 0;
 
-  const { slugByKey, state, report: slugReport } = assignSlugs(population.animals, previousState);
+  const { slugByKey, state, report: slugReport } = assignSlugs(
+    population.animals,
+    previousState,
+    new Set(Object.keys(previousManifest)),
+  );
 
   const rule =
     opts.rule === 'producers'
@@ -323,6 +330,7 @@ async function main(): Promise<void> {
     withoutRegistration: slugReport.withoutRegistration,
     retiredSlugs: slugReport.retired,
     registrationsAdopted: slugReport.registrationsAdopted,
+    merges: slugReport.merged,
     firstRun,
     largestPayloadBytes,
     totalPayloadBytes,
@@ -336,6 +344,11 @@ async function main(): Promise<void> {
   };
 
   if (!opts.dryRun) {
+    // The list the reports were computed against, published beside them (see constants).
+    writeFile(
+      join(opts.out, FOUNDATION_LIST_KEY),
+      `${JSON.stringify({ names: FOUNDATION_DOGS }, null, 2)}\n`,
+    );
     writeFile(
       statePath,
       `${JSON.stringify(
@@ -396,6 +409,28 @@ async function main(): Promise<void> {
   }
   if (population.missingOptionalColumns.length > 0) {
     lines.push(`absent columns    ${population.missingOptionalColumns.join(', ')}`);
+  }
+  // The lists behind the counts. A dry run writes no run-report.json, and the count alone
+  // cannot be acted on: which dog moved, which edge closes the cycle. Capped so a mass
+  // rename does not scroll the summary off the screen — the full lists are in the report.
+  const LIST_CAP = 40;
+  const listed = <T,>(items: readonly T[], show: (t: T) => string): string[] => [
+    ...items.slice(0, LIST_CAP).map((t) => `                    ${show(t)}`),
+    ...(items.length > LIST_CAP ? [`                    … and ${items.length - LIST_CAP} more`] : []),
+  ];
+  if (slugReport.merged.length > 0) {
+    lines.push(
+      `merges            ${slugReport.merged.length} renamed dog(s) inherited the URL of a same-named ` +
+        'record removed in this run',
+    );
+    lines.push(...listed(slugReport.merged, (m) => `${m.slug}   ${m.name}   (was ${m.from})`));
+  }
+  if (slugReport.moved.length > 0) {
+    lines.push('moved slugs       (old → new, a 301 for each)');
+    lines.push(...listed(slugReport.moved, (m) => `${m.from} → ${m.to}   ${m.name}`));
+  }
+  if (pedigreeCycles.length > 0) {
+    lines.push(...listed(pedigreeCycles, (c) => `${c.child} — ${c.relation} = ${c.parent} (already an ancestor)`));
   }
   if (opts.dryRun) lines.push('dry run           nothing was written');
   console.log(lines.join('\n'));

@@ -44,6 +44,16 @@ once** where it does not.
   (`no registration`) rather than hiding the limit behind a guess.
 - A slug is never reissued. When a dog leaves the file its URL is retired, so a different
   dog with the same name cannot inherit its search results.
+- **Except a merge** (added 2026-09-12). De-duplicating means keeping one record, giving it
+  the other's name and deleting the other — which, seen from the state file, is a renamed
+  dog claiming the slug of a dog that vanished in the same run. That slug is inherited,
+  and the survivor's old URL redirects to it, when all three hold: the slug had a page in
+  the previous publish (the payload manifest says so — a slug retired in an earlier run
+  stays retired), its holder is absent from this run, and the claimant was itself already
+  published. A brand-new record never inherits. Before this rule the survivor got its
+  registration appended to the URL (`…-262-0000007`) and the state file was edited by hand;
+  the 2026-09-12 cleanup produced eight such cases in one run. The dry run lists them
+  under `merges`.
 
 ## Incremental publishing
 
@@ -153,6 +163,9 @@ Three things to know:
   `occ` is `[generation, sire-side paths, dam-side paths]`; crosses, lines, closest, Blood %
   and Influence are computed from it where shown (`reportModel.ts`). Measured on the real
   catalogue: 1.74 GB in R2 instead of 2.96 GB, for the same page.
+- **The founder list is published beside the reports** as `report/_foundation.json`, and
+  the Foundation page reads it from the bucket. A list edit therefore reaches the site with
+  the report sync, not with a deploy; the constant in the Worker is only a fallback.
 - **Reports have their own manifest** (`reports` in `state.json`) and their own
   written/unchanged counts. A report changes when any ancestor within twenty generations
   changes, which the four-generation page payload does not, so the two are tracked apart.

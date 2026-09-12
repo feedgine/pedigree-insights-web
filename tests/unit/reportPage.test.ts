@@ -127,7 +127,7 @@ describe('the foundation page', () => {
 
   it('uses the site list by default and renders through the shared entry point', () => {
     const page = renderReportPage('foundation', sampleReports());
-    expect(page).toContain('of 55 foundation dogs present');
+    expect(page).toContain('of 54 foundation dogs present');
     expect(page).toContain('<span aria-current="page">Foundation dogs</span>');
     expect(renderReportPage('linebreeding', sampleReports())).toContain('Linebreeding statistics');
   });

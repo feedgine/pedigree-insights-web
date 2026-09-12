@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.functions.json",
     "typecheck:functions": "tsc --noEmit -p tsconfig.functions.json",
     "vendor:check": "node tools/vendor-lib.mjs --check",
+    "foundation:check": "node tools/foundation-check.mjs",
     "vendor:sync": "node tools/vendor-lib.mjs"
   },
   "dependencies": {

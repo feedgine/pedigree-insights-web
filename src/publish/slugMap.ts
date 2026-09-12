@@ -75,6 +75,8 @@ export interface SlugReport {
   readonly retired: number;
   /** Dogs that gained a registration and kept the URL they were already published under. */
   readonly registrationsAdopted: number;
+  /** Renamed dogs that inherited the URL of a same-named record removed in the same run. */
+  readonly merged: readonly { slug: string; name: string; from: string }[];
 }
 
 /**
@@ -123,6 +125,13 @@ function recordMove(redirects: Record<string, string>, from: string, to: string)
 export function assignSlugs(
   animals: readonly Animal[],
   previous: SlugState = emptySlugState(),
+  /**
+   * Slugs that had a page in the previous publish — the payload manifest's keys. The
+   * state's `assignments` keep every identity ever published, dead ones included, so on
+   * their own they cannot say whether a slug's holder left in THIS run or years ago; the
+   * manifest can. Without it no merge is recognised, which is the safe direction.
+   */
+  previouslyPublished: ReadonlySet<string> = new Set(),
 ): SlugAssignment {
   const assignments: Record<string, string> = { ...previous.assignments };
   const synthetic: Record<string, string> = { ...previous.synthetic };
@@ -214,6 +223,30 @@ export function assignSlugs(
     adopted += 1;
   }
 
+  // ---- 2c. what a merge looks like from here ---------------------------------------
+  // The owner de-duplicates by keeping one record, giving it the other's name, and
+  // deleting the other. Seen through the state file that is: identity A renamed onto the
+  // slug identity B held, and B gone from the file in the same run. The never-reissue rule
+  // would treat A as a stranger and append A's registration to the URL — which is how
+  // `/dog/sakura-show-omoshiroi-otoko-262-0000007` happened on 2026-08-31 and was undone
+  // by hand in the state file. Eight more on 2026-09-12 made it a rule instead.
+  //
+  // A slug may be inherited only when all three hold: it had a page in the PREVIOUS
+  // publish (not a slug retired in some earlier run — `previouslyPublished`), its holder
+  // is absent from THIS run, and the claimant is itself an already-published dog being
+  // renamed (a brand new record never inherits a departed dog's URL). Under those conditions the departed
+  // record and the renamed one carry the same name, and the same name leaving and arriving
+  // in one edit is a merge, not a coincidence — the coincidence case is what the
+  // `(year)` suffixes in names exist for, and it yields a different slug.
+  const liveIdentities = new Set(entries.map((e) => e.identity));
+  const merged: { slug: string; name: string; from: string }[] = [];
+  const inheritable = (slug: string, holder: string, claimant: Entry): boolean =>
+    holder !== ' retired' &&
+    !liveIdentities.has(holder) &&
+    previous.assignments[holder] === slug &&
+    previouslyPublished.has(slug) &&
+    assignments[claimant.identity] !== undefined;
+
   // ---- 3. claim slugs -------------------------------------------------------------
   /** slug → the identity holding it. Seeded with every slug this site has ever used, so
    *  a URL published for a dog that has since left the file is never handed to another. */
@@ -254,6 +287,15 @@ export function assignSlugs(
 
     const discriminator = e.identity.slice(e.identity.indexOf(':') + 1);
     let slug = e.desired;
+    const holder = taken.get(slug);
+    if (holder !== undefined && holder !== e.identity && inheritable(slug, holder, e)) {
+      // A merge: the departed record's URL passes to the record that took its name. The
+      // dead identity is dropped from the assignments so the slug has one holder, and
+      // the claimant's previous URL redirects to it like any other rename.
+      delete assignments[holder];
+      taken.delete(slug);
+      merged.push({ slug, name: e.animal.name, from: holder });
+    }
     if (!free(slug, e.identity)) {
       const resolved = disambiguate(e.candidate, discriminator);
       collisions.push({ slug, name: e.animal.name, resolved });
@@ -297,7 +339,15 @@ export function assignSlugs(
     slugByKey: sortedSlugs,
     identityByKey: sortedIdentities,
     state: { version: SLUG_STATE_VERSION, assignments, synthetic, redirects, nextSynthetic },
-    report: { assigned, moved, collisions, withoutRegistration, retired, registrationsAdopted: adopted },
+    report: {
+      assigned,
+      moved,
+      collisions,
+      withoutRegistration,
+      retired,
+      registrationsAdopted: adopted,
+      merged,
+    },
   };
 }
 

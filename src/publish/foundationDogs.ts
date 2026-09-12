@@ -4,7 +4,7 @@
  * The desktop application takes this list from the user — any dogs they care about. A
  * public page cannot ask, so the site carries one list: the Japanese exports that founded
  * the breed outside Japan, as kept in the documentation hub
- * (`_General Specifications/foundation-japanese-spitz-exports.txt`, 55 names). Owner
+ * (`_General Specifications/foundation-japanese-spitz-exports.txt`, 54 names). Owner
  * decision, 2026-09-11.
  *
  * To change the list, edit this file. Every foundation report is recomputed at the next
@@ -12,8 +12,10 @@
  * publish run rather than silently shown as absent from every pedigree.
  *
  * Names are matched the way the database matches them: trimmed, case-insensitive. This
- * list and the hub file are identical: six names were corrected in both on 2026-09-11 to
- * the catalogue's spelling (registry suffix `JP`/`FCI`; for OSTARA the birth-year
+ * list and the hub file are identical: eight names were corrected in both (six on 2026-09-11,
+ * two on 2026-09-12 after the owner's data cleanup) to the catalogue's spelling, and
+ * WHITE JOANNA OF MOON LIGHT was removed on 2026-09-12 — Swedish-bred (SKK S13492/79,
+ * born 1977 from two Japanese imports), so a daughter of exports, not an export (registry suffix `JP`/`FCI`; for OSTARA the birth-year
  * disambiguator the catalogue adds to a shared name).
  *
  * @author Yuliya Malinina <julia.malinina@gmail.com>
@@ -39,7 +41,6 @@ export const FOUNDATION_DOGS: readonly string[] = [
   'ALICE OF AMAGE',
   'FLORENCE OF ROSE GARDEN',
   'FUJIMILAND BABY RAMALE',
-  'WHITE JOANNA OF MOON LIGHT',
   'GAIA OF TAMANA ARIAKESOW',
   'HANNAH OF TAMANA ARIAKESOW',
   'HARRY OF TAMANA ARIAKESOW',
@@ -50,7 +51,7 @@ export const FOUNDATION_DOGS: readonly string[] = [
   'IDOL OF NADESHIKO LAND',
   'SHIRAYUKI OF TOKYO SEIZANSOW',
   'AGREE OF SENBON MATSUBARASOW',
-  'TAKE OH OF YOKAHAMA TAKADA',
+  'TAKE OH OF YOKOHAMA TAKADA',
   'FUJIKO OF WHITE KODAMASOW',
   'MASAMITSU OF YOKOHAMA MURATA JP',
   'BOBY OF KOZA LAND JP',
@@ -70,7 +71,7 @@ export const FOUNDATION_DOGS: readonly string[] = [
   'NAOMI OF KONPARU WAKATA JP',
   'LAPISLAZULI OF SYLPH SATO',
   'SPITZ PARADISE ANGEL AKI',
-  'IKAR OF HONDASOW',
+  'IKAR OF HONDASOW JP',
   'ORANGE HILL JP DORIS',
   'MILLION STEEPS WHITE CHOUCHOU FCI',
   'EREN HOF HAMAHIME FCI',
