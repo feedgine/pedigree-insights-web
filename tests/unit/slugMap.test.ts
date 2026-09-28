@@ -212,12 +212,14 @@ describe('a merge of two records', () => {
     expect(serialiseSlugState(third.state)).toBe(serialiseSlugState(second.state));
   });
 
-  it('never lets a brand-new record inherit a departed dog’s URL', () => {
+  it('never lets a brand-new record inherit a departed dog’s URL by the merge rule', () => {
+    // Same name, old registration gone, new one arrived. Since 2026-09-28 that is read as a
+    // registration correction (see below) — the merge rule itself still does not fire.
     const first = assignSlugs([dog('OLD DOG', { registration: 'R-1' })]);
     const second = assignSlugs([dog('OLD DOG', { registration: 'R-2' })], first.state, published(first));
-    expect(slugFor(second, 'old dog')).toBe('old-dog-r-2');
     expect(second.report.merged).toEqual([]);
-    expect(second.report.assigned).toBe(1);
+    expect(second.report.registrationsCorrected).toHaveLength(1);
+    expect(slugFor(second, 'old dog')).toBe('old-dog');
   });
 
   it('never reissues a slug that was retired in an earlier run', () => {
@@ -236,5 +238,93 @@ describe('a merge of two records', () => {
     const second = assignSlugs(after, first.state);
     expect(slugFor(second, 'take oh of yokohama takada')).toBe('take-oh-of-yokohama-takada-dk05461-85');
     expect(second.report.merged).toEqual([]);
+  });
+});
+
+describe('a corrected registration', () => {
+  it('keeps the URL published under the old number, with no move, collision or retirement', () => {
+    const first = assignSlugs([
+      dog('BLANDVITA DE LA TRIX', { registration: 'SE50516/2022' }),
+      dog('BYSTANDER', { registration: 'B-1' }),
+    ]);
+    const after = [
+      dog('BLANDVITA DE LA TRIX', { registration: 'FI55357/22' }),
+      dog('BYSTANDER', { registration: 'B-1' }),
+    ];
+    const second = assignSlugs(after, first.state, published(first));
+    expect(slugFor(second, 'blandvita de la trix')).toBe('blandvita-de-la-trix');
+    expect(second.report.registrationsCorrected).toEqual([
+      {
+        slug: 'blandvita-de-la-trix',
+        name: 'BLANDVITA DE LA TRIX',
+        from: 'reg:SE50516/2022',
+        to: 'reg:FI55357/22',
+      },
+    ]);
+    expect(second.report.moved).toEqual([]);
+    expect(second.report.collisions).toEqual([]);
+    expect(second.report.assigned).toBe(0);
+    expect(second.report.retired).toBe(0);
+    expect(second.state.assignments['reg:SE50516/2022']).toBeUndefined();
+    expect(second.state.assignments['reg:FI55357/22']).toBe('blandvita-de-la-trix');
+
+    const third = assignSlugs(after, second.state, published(second));
+    expect(third.report.registrationsCorrected).toEqual([]);
+    expect(serialiseSlugState(third.state)).toBe(serialiseSlugState(second.state));
+  });
+
+  it('follows a correction and a rename in the same run only through the correction', () => {
+    // The name changed too: nothing ties the new number to the old URL, so no guess.
+    const first = assignSlugs([dog('OLD SPELLING', { registration: 'R-1' })]);
+    const second = assignSlugs([dog('NEW SPELLING', { registration: 'R-2' })], first.state, published(first));
+    expect(second.report.registrationsCorrected).toEqual([]);
+    expect(slugFor(second, 'new spelling')).toBe('new-spelling');
+  });
+
+  it('does not adopt a slug that had no page in the previous publish', () => {
+    const first = assignSlugs([dog('OLD DOG', { registration: 'R-1' })]);
+    const second = assignSlugs([dog('OLD DOG', { registration: 'R-2' })], first.state);
+    expect(second.report.registrationsCorrected).toEqual([]);
+    expect(slugFor(second, 'old dog')).toBe('old-dog-r-2');
+  });
+});
+
+describe('a registration swapped between littermates', () => {
+  // CHEZZAY'S, 2026-09-28: GUTS AND GLORY was published under her brother's number. The
+  // number now sits on GOLDEN GLIMMER, and she has her own.
+  const first = () =>
+    assignSlugs([
+      dog('CHEZZAYS GUTS AND GLORY', { registration: 'S69423/2008' }),
+      dog('CHEZZAYS GOOD GAME', { registration: 'S69425/2008' }),
+    ]);
+  const after = [
+    dog('CHEZZAYS GUTS AND GLORY', { registration: 'S69424/2008' }),
+    dog('CHEZZAYS GOLDEN GLIMMER', { registration: 'S69423/2008' }),
+    dog('CHEZZAYS GOOD GAME', { registration: 'S69425/2008' }),
+  ];
+
+  it('is never adopted as a correction — the old number is still live', () => {
+    const one = first();
+    const two = assignSlugs(after, one.state, published(one));
+    expect(two.report.registrationsCorrected).toEqual([]);
+  });
+
+  it('is reported as a suspected swap so the owner can fix it before publishing', () => {
+    const one = first();
+    const two = assignSlugs(after, one.state, published(one));
+    expect(two.report.suspectedSwaps).toEqual([
+      {
+        slug: 'chezzays-guts-and-glory',
+        movedTo: 'chezzays-golden-glimmer',
+        movedName: 'CHEZZAYS GOLDEN GLIMMER',
+        otherName: 'CHEZZAYS GUTS AND GLORY',
+      },
+    ]);
+  });
+
+  it('is not reported for an ordinary rename', () => {
+    const one = assignSlugs([dog('OLD NAME', { registration: 'R1' })]);
+    const two = assignSlugs([dog('NEW NAME', { registration: 'R1' })], one.state, published(one));
+    expect(two.report.suspectedSwaps).toEqual([]);
   });
 });

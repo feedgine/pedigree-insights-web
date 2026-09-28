@@ -231,6 +231,12 @@ npm run publish:extract -- --source "$MASTER_DB" --out "$PAYLOAD_DIR" --state "$
 the list lives in those two places by design (one for the desktop import, one for the
 site) and nothing else keeps them together.
 
+If it prints `Usage: … (or set FOUNDATION_LIST)`, your `deploy.local.env` predates the
+variable. Copy the `FOUNDATION_LIST=` line from `deploy.env.example` into it and source it
+again. **When the hub list changes, change `foundationDogs.ts` to match in the same
+sitting** — the site publishes the repo copy, not the hub file, and the check is what tells
+you they have drifted.
+
 Nothing is written. Four lines are worth reading before anything is:
 
 | Line | What it tells you |
@@ -240,6 +246,26 @@ Nothing is written. Four lines are worth reading before anything is:
 | `merges` | Renamed dogs that inherited the URL of a same-named record removed in this run — a de-duplication seen from the pipeline's side. Check each is really one dog; the alternative reading (a dog deleted and a different dog renamed onto its exact name in the same edit) is rare but possible. |
 | `removed` / `retired` | Dogs that left the file. A retired slug is never reissued, except to a merge survivor (above). |
 | `DUPLICATE NAMES` | Should be empty. If not, one row is being silently skipped. |
+| `reg corrected` | Dogs whose registration number was corrected (same name, new number, old number gone from the file). They keep their URL automatically — nothing to do; the list is there to recognise your own edits. |
+| `REG SWAP?` | **Read every line.** A URL is about to 301 to a different dog, because a number moved from one dog to another (a littermate had been given the wrong number). See *A registration swapped between two dogs* below. |
+
+#### A registration swapped between two dogs
+
+The URL follows the registration number. If dog A was published under B's number and you
+move that number to B, the pipeline reads it as "A was renamed to B": A's URL redirects to
+B, and A gets a new URL with its number appended. The run flags it as `REG SWAP?` and does
+not fix it itself, because a rename plus a new dog taking the old name looks identical.
+
+To fix, before the real run:
+
+1. `cp -p publish-state/state.json publish-state/state.json.bak-<date>-regswap`
+2. In `state.json` → `slugs` → `assignments`, find the line `"reg:<the moved number>": "<A's slug>"`
+   and change only the key to A's **new** number. Leave B out — it receives a clean URL of
+   its own.
+3. Dry run again. The line should be gone from `REG SWAP?` and from `moved slugs`.
+
+Seen on 2026-09-28 with CHEZZAY'S GUTS AND GLORY / GOLDEN GLIMMER and DONÅSEN'S SEÑORA
+FELICITA / LUZITA.
 
 `unchanged 0` is not automatically a bug — look for a global data change first, and check
 the state file only after that.

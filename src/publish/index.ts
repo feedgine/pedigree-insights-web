@@ -152,6 +152,15 @@ interface RunReport {
   readonly registrationsAdopted: number;
   /** Renamed dogs that inherited the URL of a same-named record removed in the same run. */
   readonly merges: readonly { slug: string; name: string; from: string }[];
+  /** Dogs whose registration was corrected and kept the URL published under the old one. */
+  readonly registrationsCorrected: readonly { slug: string; name: string; from: string; to: string }[];
+  /** Moves that look like a registration swapped between two dogs. Reported, not acted on. */
+  readonly suspectedSwaps: readonly {
+    slug: string;
+    movedTo: string;
+    movedName: string;
+    otherName: string;
+  }[];
   readonly firstRun: boolean;
   readonly largestPayloadBytes: number;
   readonly totalPayloadBytes: number;
@@ -331,6 +340,8 @@ async function main(): Promise<void> {
     retiredSlugs: slugReport.retired,
     registrationsAdopted: slugReport.registrationsAdopted,
     merges: slugReport.merged,
+    registrationsCorrected: slugReport.registrationsCorrected,
+    suspectedSwaps: slugReport.suspectedSwaps,
     firstRun,
     largestPayloadBytes,
     totalPayloadBytes,
@@ -424,6 +435,29 @@ async function main(): Promise<void> {
         'record removed in this run',
     );
     lines.push(...listed(slugReport.merged, (m) => `${m.slug}   ${m.name}   (was ${m.from})`));
+  }
+  if (slugReport.registrationsCorrected.length > 0) {
+    lines.push(
+      `reg corrected     ${slugReport.registrationsCorrected.length} dog(s) had their registration ` +
+        'corrected and kept their URL',
+    );
+    lines.push(
+      ...listed(slugReport.registrationsCorrected, (c) => `${c.slug}   ${c.from} → ${c.to}`),
+    );
+  }
+  if (slugReport.suspectedSwaps.length > 0) {
+    lines.push(
+      `REG SWAP?         ${slugReport.suspectedSwaps.length} move(s) look like a registration ` +
+        'moved between two dogs — check before publishing; fix in the state file if so',
+    );
+    lines.push(
+      ...listed(
+        slugReport.suspectedSwaps,
+        (w) =>
+          `${w.slug} → ${w.movedTo} (${w.movedName}), but ${w.otherName} is in the file ` +
+          'with no URL',
+      ),
+    );
   }
   if (slugReport.moved.length > 0) {
     lines.push('moved slugs       (old → new, a 301 for each)');

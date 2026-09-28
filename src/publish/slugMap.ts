@@ -77,6 +77,24 @@ export interface SlugReport {
   readonly registrationsAdopted: number;
   /** Renamed dogs that inherited the URL of a same-named record removed in the same run. */
   readonly merged: readonly { slug: string; name: string; from: string }[];
+  /** Dogs whose registration was corrected, and kept the URL published under the old one. */
+  readonly registrationsCorrected: readonly {
+    slug: string;
+    name: string;
+    from: string;
+    to: string;
+  }[];
+  /**
+   * Moves that look like a registration swapped between two dogs rather than a rename:
+   * the moved-from URL is exactly the name of another dog in the file that has no URL yet.
+   * NOT acted on — reported so the owner reads them before publishing.
+   */
+  readonly suspectedSwaps: readonly {
+    slug: string;
+    movedTo: string;
+    movedName: string;
+    otherName: string;
+  }[];
 }
 
 /**
@@ -223,6 +241,44 @@ export function assignSlugs(
     adopted += 1;
   }
 
+  // ---- 2d. a corrected registration keeps its URL ----------------------------------
+  // The owner corrects registrations in bulk — a number typed under the wrong dog, a
+  // foreign number promoted to the main field, a `SKK ` prefix dropped. The name does not
+  // change; the identity does, so without this pass the dog reads as brand new: its
+  // published URL is retired with no redirect, and the name slug it still wants is refused
+  // as taken, so it is disambiguated into `<name>-<registration>`. Measured on the real
+  // master 2026-09-28: 94 dogs, fixed that day by hand in the state file.
+  //
+  // Adopt only when every condition holds, so this never guesses:
+  //   - the dog has a registration that has never been published,
+  //   - the URL its name wants is held by another REGISTRATION identity (a synthetic one
+  //     is pass 2b's case),
+  //   - that identity is absent from this run — if it is still live, the number moved to
+  //     another dog (a littermate swap), which is reported below, never acted on,
+  //   - it held exactly this slug, and the slug had a page in the previous publish.
+  const liveAfterIdentity = new Set(entries.map((e) => e.identity));
+  const slugHolder = new Map<string, string>();
+  for (const [identity, slug] of Object.entries(assignments)) slugHolder.set(slug, identity);
+  const registrationsCorrected: { slug: string; name: string; from: string; to: string }[] = [];
+  for (const e of entries) {
+    if (!e.identity.startsWith('reg:')) continue;
+    if (assignments[e.identity] !== undefined) continue;
+    const holder = slugHolder.get(e.desired);
+    if (holder === undefined || !holder.startsWith('reg:')) continue;
+    if (liveAfterIdentity.has(holder)) continue;
+    if (previous.assignments[holder] !== e.desired) continue;
+    if (!previouslyPublished.has(e.desired)) continue;
+    assignments[e.identity] = e.desired;
+    delete assignments[holder];
+    slugHolder.set(e.desired, e.identity);
+    registrationsCorrected.push({
+      slug: e.desired,
+      name: e.animal.name,
+      from: holder,
+      to: e.identity,
+    });
+  }
+
   // ---- 2c. what a merge looks like from here ---------------------------------------
   // The owner de-duplicates by keeping one record, giving it the other's name, and
   // deleting the other. Seen through the state file that is: identity A renamed onto the
@@ -335,6 +391,27 @@ export function assignSlugs(
   const live = new Set(identityByKey.values());
   const retired = Object.keys(assignments).filter((id) => !live.has(id)).length;
 
+  // A move whose old URL is exactly the name of another dog that has just received its
+  // first URL is what a registration swapped between littermates looks like (CHEZZAY'S
+  // GUTS AND GLORY / GOLDEN GLIMMER, 2026-09-28): the number carried the URL to the wrong
+  // dog. A rename plus a new dog taking the old name in the same edit looks identical,
+  // which is why this is reported and not corrected.
+  const suspectedSwaps: { slug: string; movedTo: string; movedName: string; otherName: string }[] =
+    [];
+  for (const m of moved) {
+    const other = entries.find(
+      (e) => e.desired === m.from && previous.assignments[e.identity] === undefined,
+    );
+    if (other) {
+      suspectedSwaps.push({
+        slug: m.from,
+        movedTo: m.to,
+        movedName: m.name,
+        otherName: other.animal.name,
+      });
+    }
+  }
+
   return {
     slugByKey: sortedSlugs,
     identityByKey: sortedIdentities,
@@ -347,6 +424,8 @@ export function assignSlugs(
       retired,
       registrationsAdopted: adopted,
       merged,
+      registrationsCorrected,
+      suspectedSwaps,
     },
   };
 }
