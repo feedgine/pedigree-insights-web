@@ -100,6 +100,8 @@ export const SITE: SiteConfig = {
   dataLicenceUrl: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
   breed: 'Japanese Spitz',
   coiGenerations: 20,
+  // JSF2025 is a permanent discount code — 2025 is the year the programme started, not an
+  // expiry. Owner, 2026-09-28. Not a stale date; leave it.
   banners: [
     {
       image: '/assets/dna-tests-banner.webp',

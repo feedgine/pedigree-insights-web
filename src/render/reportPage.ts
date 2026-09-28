@@ -28,6 +28,7 @@ import {
   type FoundationRow,
   type LinebreedingRow,
 } from '../publish/reportModel';
+import { LINEBREEDING_GENERATIONS } from '../publish/constants';
 import { FOUNDATION_DOGS } from '../publish/foundationDogs';
 import { esc, lines } from './escape';
 import { renderPage, type PageMeta } from './layout';
@@ -294,7 +295,7 @@ export function renderFoundationPage(
     '<th class="name">Foundation dog</th>',
     '<th class="num">Present</th>',
     '<th class="num" title="Closest generation of appearance (1 = a parent)">Closest</th>',
-    '<th class="num" title="Occurrence paths within 20 generations">Crosses</th>',
+    `<th class="num" title="Occurrence paths within ${LINEBREEDING_GENERATIONS} generations">Crosses</th>`,
     '<th class="num" title="Wright\'s blood contribution over every generation — a computed estimate">Contribution</th>',
     '</tr></thead>',
     '<tbody>',

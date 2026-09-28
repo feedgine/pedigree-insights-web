@@ -60,6 +60,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const reports = (await object.json()) as DogReports;
 
   let html: string;
+  // The ETag must change whenever anything the page shows changes. A Foundation page is
+  // built from the dog's report AND the founder list, and most reports stay byte-identical
+  // when only the list changes — so the report's own etag alone let browsers and the edge
+  // keep serving "of 55" after the list had grown (2026-09-28).
+  let etag = object.etag;
   if ((kind as ReportKind) === 'linebreeding') {
     html = renderLinebreedingPage(reports, SITE, () => true);
   } else {
@@ -69,6 +74,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const list = await context.env.PAYLOADS.get(FOUNDATION_LIST_KEY);
     const names =
       list === null ? FOUNDATION_DOGS : ((await list.json()) as { names: string[] }).names;
+    etag = `${object.etag}-${list === null ? `c${FOUNDATION_DOGS.length}` : list.etag}`;
     html = renderFoundationPage(reports, SITE, () => true, undefined, names);
   }
 
@@ -77,7 +83,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       ...SECURITY_HEADERS,
       'content-type': 'text/html; charset=utf-8',
       'cache-control': CACHE_CONTROL,
-      etag: `"${object.etag}"`,
+      etag: `"${etag}"`,
     },
   });
 };

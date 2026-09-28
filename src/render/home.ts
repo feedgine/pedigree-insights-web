@@ -151,37 +151,41 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
       'recorded. Every pedigree is drawn to four generations whether or not the records ' +
       'reach that far, so a short line is visibly short rather than quietly cropped.</p>',
     '</section>',
-    // A first release says two useful things at once: the catalogue is alive and being
-    // worked on, and here is what is missing — which is what turns a reader into someone
-    // who sends a correction. Deliberately no dates: an undated plan can stay true for a
-    // year, and nothing here is a commitment the Foundation has made to a schedule.
+    // Says two useful things at once: the catalogue is alive and being worked on, and here
+    // is what is missing — which is what turns a reader into someone who sends a
+    // correction. Planned items carry no dates on purpose: an undated plan can stay true
+    // for a year, and nothing here is a schedule the Foundation has committed to.
+    // Rewritten by the owner 2026-09-28. Review at every release.
     '<section>',
-    '<h2>A first release</h2>',
-    '<p class="note">This is the first published version of the catalogue. Every dog in ' +
-      'the register is here, with its pedigree as complete as the records allow — but ' +
-      'the site around them is still being built.</p>',
-    '<p class="note"><strong>Here now:</strong> a page for every dog, four-generation ' +
-      'pedigrees, offspring grouped by mate, full siblings, DNA test results, search by ' +
-      'name, and a JSON version of every record for anyone building on the data.</p>',
-    '<p class="note"><strong>Planned:</strong> pages gathering dogs by kennel, birth ' +
-      'year, country and DNA test; an A–Z index of the whole register; and photographs, ' +
-      'once the right to publish each one has been settled.</p>',
-    // Naming the three reports was no use to anyone who does not already run the desktop
-    // application — which is most people who will read this page. Say what each answers.
-    '<p class="note">Also planned: the analysis the Foundation already runs on the ' +
-      'desktop, available here.</p>',
+    '<h2>Current state</h2>',
+    '<p class="note">This is the international version of the pedigree data the ' +
+      'Japanese Spitz Foundation has collected over the years — thank you to everyone ' +
+      'who contributed. We keep collecting information about dogs and adding more tools ' +
+      'for breeders.</p>',
+    '<p class="note"><strong>Available now (September 2026):</strong></p>',
     '<ul class="plain">',
+    '<li>Search by name.</li>',
+    '<li>A page for every dog: four-generation pedigree, offspring grouped by mate, full ' +
+      'siblings and DNA test results.</li>',
     '<li><strong>Linebreeding</strong> — which ancestors appear on both the sire’s and ' +
       'the dam’s side of a pedigree, how close up they sit, and how much of the dog they ' +
       'account for between them.</li>',
+    '<li><strong>Foundation reports</strong> — which of the breed’s founding dogs stand ' +
+      'behind a pedigree, and in what proportion each of them contributed.</li>',
+    '</ul>',
+    '<p class="note">Links to both reports are on every dog page.</p>',
+    '<p class="note"><strong>Planned:</strong></p>',
+    '<ul class="plain">',
+    '<li>Photographs of the dogs, once the right to publish each one has been settled.</li>',
+    '<li>Catalogue pages gathering dogs by kennel, birth year, country and DNA test.</li>',
+    '<li>An index of kennels by country, and of litters by year.</li>',
     '<li><strong>Hypothetical matings</strong> — choose a sire and a dam that have never ' +
       'been bred together and see the pedigree their puppies would have, its inbreeding ' +
       'coefficient, and a warning where both parents carry the same recessive DNA ' +
       'result.</li>',
-    '<li><strong>Foundation reports</strong> — which of the breed’s founding dogs stand ' +
-      'behind a pedigree, and in what proportion each of them contributed.</li>',
     '<li><strong>DNA test reports</strong> — for a chosen test, how the whole population ' +
       'divides between clear, carrier and affected, and which dogs make up each group.</li>',
+    '<li><strong>Breeder accounts</strong> — for announcing planned litters.</li>',
     '</ul>',
     '</section>',
   ].join('\n');
