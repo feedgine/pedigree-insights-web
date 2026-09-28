@@ -199,6 +199,9 @@ email changes — one subdomain is added and that is all.
 
 ## 9. Republishing — the routine
 
+> The one-page version to follow on the day is [`publish-checklist.md`](publish-checklist.md).
+> This section keeps the reasons behind each step.
+
 Sections 1, 2, 3, 7 and 8 happen once. This is a routine update, start to finish: a few
 corrections merged into the master, or a change to the templates.
 
