@@ -12,6 +12,7 @@ import {
   renderReportPage,
 } from '../../src/render/reportPage.ts';
 import { SITE_CSS } from '../../src/render/styles.ts';
+import { FOUNDATION_DOGS } from '../../src/publish/foundationDogs.ts';
 import { lookupOver, sampleKennel } from '../helpers/dogs.ts';
 
 /** A hand-made report: the shape the publish writes, with numbers chosen to be checkable. */
@@ -127,7 +128,7 @@ describe('the foundation page', () => {
 
   it('uses the site list by default and renders through the shared entry point', () => {
     const page = renderReportPage('foundation', sampleReports());
-    expect(page).toContain('of 54 foundation dogs present');
+    expect(page).toContain(`of ${FOUNDATION_DOGS.length} foundation dogs present`);
     expect(page).toContain('<span aria-current="page">Foundation dogs</span>');
     expect(renderReportPage('linebreeding', sampleReports())).toContain('Linebreeding statistics');
   });

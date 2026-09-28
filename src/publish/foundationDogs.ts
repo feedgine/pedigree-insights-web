@@ -4,7 +4,7 @@
  * The desktop application takes this list from the user — any dogs they care about. A
  * public page cannot ask, so the site carries one list: the Japanese exports that founded
  * the breed outside Japan, as kept in the documentation hub
- * (`_General Specifications/foundation-japanese-spitz-exports.txt`, 54 names). Owner
+ * (`_General Specifications/foundation-japanese-spitz-exports.txt`, 61 names). Owner
  * decision, 2026-09-11.
  *
  * To change the list, edit this file. Every foundation report is recomputed at the next
@@ -13,69 +13,74 @@
  *
  * Names are matched the way the database matches them: trimmed, case-insensitive. This
  * list and the hub file are identical: eight names were corrected in both (six on 2026-09-11,
- * two on 2026-09-12 after the owner's data cleanup) to the catalogue's spelling, and
- * WHITE JOANNA OF MOON LIGHT was removed on 2026-09-12 — Swedish-bred (SKK S13492/79,
- * born 1977 from two Japanese imports), so a daughter of exports, not an export (registry suffix `JP`/`FCI`; for OSTARA the birth-year
+ * two on 2026-09-12 after the owner's data cleanup) to the catalogue's spelling, WHITE JOANNA
+ * OF MOON LIGHT was removed on 2026-09-12 and restored on 2026-09-28 after the owner's
+ * research, when the list was re-synced to the hub file (registry suffix `JP`/`FCI`; for OSTARA the birth-year
  * disambiguator the catalogue adds to a shared name).
  *
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
 export const FOUNDATION_DOGS: readonly string[] = [
-  'SABINA OF MOONLIGHT',
-  'DANIEL OF ROSE GARDEN',
-  'ANDOLEASON OF GOLDEN MEADOW',
-  'GÖTTER-MAHLS SHANSHAN',
-  'GRADICE OF HOUSE CACTUS',
-  'ATHENA LEILANI OF ALOHA LAND',
-  'WHITE PEARL OF LONE HILL',
+  'ACCEL OF GOD MOUNT JP',
+  'ADELA OF AMAGE',
+  'AGREE OF SENBON MATSUBARASOW',
   'ALBARES CARP OF NEDORY',
   'ALBERT OF LOVELY',
-  'BULLET FANCY OF NEDORY',
-  'I.F. BIRDIE OF TAMANA ARIAKESOW',
-  'DICK OF NADESHIKO LAND',
-  'BILKE OF SUMMIT FIELD',
-  'HAWK OF KAGETSU LAND',
-  'HOVER OF KAGETSU LAND',
-  'ADELA OF AMAGE',
+  'ALEX OF GOLDEN MEADOW',
   'ALICE OF AMAGE',
+  'ANDOLEASON OF GOLDEN MEADOW',
+  'ASAGI OF TOYOSHI HAKUREN JP',
+  'ASTER OF MONAMI FUJINOMIYA',
+  'ATHENA LEILANI OF ALOHA LAND',
+  'AXEL OF KOBE MANAMISOW',
+  'BILKE OF SUMMIT FIELD',
+  'BOBY OF KOZA LAND JP',
+  'BRANLY OF CASABLANCA TOMO JP',
+  'BULLET FANCY OF NEDORY',
+  'DANIEL OF ROSE GARDEN',
+  'DICK OF NADESHIKO LAND',
+  'EREN HOF BRUGA FCI',
+  'EREN HOF FUDZIAMA SAN VOM ROLLENDEN HAUS',
+  'EREN HOF FUJIYAMA FCI',
+  'EREN HOF HAMAHIME FCI',
+  'EREN HOF HANKU FCI',
+  'EREN HOF SAKURA FCI',
   'FLORENCE OF ROSE GARDEN',
+  'FUJI OF OYAMA YAMAMOTOSOW',
+  'FUJIKO OF WHITE KODAMASOW',
   'FUJIMILAND BABY RAMALE',
   'GAIA OF TAMANA ARIAKESOW',
+  'GÖTTER-MAHLS SHANSHAN',
+  'GRADICE OF HOUSE CACTUS',
   'HANNAH OF TAMANA ARIAKESOW',
   'HARRY OF TAMANA ARIAKESOW',
-  'AXEL OF KOBE MANAMISOW',
-  'ALEX OF GOLDEN MEADOW',
-  'FUJI OF OYAMA YAMAMOTOSOW',
-  'JINGLE BELL OF HARIMA TAKEDA',
+  'HAWK OF KAGETSU LAND',
+  'HOVER OF KAGETSU LAND',
+  'I.F. BIRDIE OF TAMANA ARIAKESOW',
   'IDOL OF NADESHIKO LAND',
-  'SHIRAYUKI OF TOKYO SEIZANSOW',
-  'AGREE OF SENBON MATSUBARASOW',
-  'TAKE OH OF YOKOHAMA TAKADA',
-  'FUJIKO OF WHITE KODAMASOW',
-  'MASAMITSU OF YOKOHAMA MURATA JP',
-  'BOBY OF KOZA LAND JP',
-  'EREN HOF FUDZIAMA SAN VOM ROLLENDEN HAUS',
-  // The catalogue holds two dogs of this name, distinguished by birth year; only the
-  // 2002 bitch has offspring recorded.
-  'OSTARA OF M. EARLY SUMMER JP (2002)',
-  'RYUUCHI OF MARUKO NOMURA JP',
-  'ACCEL OF GOD MOUNT JP',
-  'SPITZ PARADISE ANGEL MITO',
-  'PRIZE OF MATSUSHIMOSATO',
-  'KIKUCHIYO OF SHONAN SUMIRESOW JP',
-  'SHONAN SUMIRESOW JP SAYAKO',
-  'JIN-CHERRY JP EMILY',
-  "NEW TOKYO KENNEL'S JODDY",
-  'BRANLY OF CASABLANCA TOMO JP',
-  'NAOMI OF KONPARU WAKATA JP',
-  'LAPISLAZULI OF SYLPH SATO',
-  'SPITZ PARADISE ANGEL AKI',
   'IKAR OF HONDASOW JP',
-  'ORANGE HILL JP DORIS',
+  'JIN-CHERRY JP EMILY',
+  'JINGLE BELL OF HARIMA TAKEDA',
+  'KIKUCHIYO OF SHONAN SUMIRESOW JP',
+  'KOTOHIME OF SHONAN SUMIRESOW JP',
+  'LAPISLAZULI OF SYLPH SATO',
+  'MASAMITSU OF YOKOHAMA MURATA JP',
   'MILLION STEEPS WHITE CHOUCHOU FCI',
-  'EREN HOF HAMAHIME FCI',
-  'EREN HOF FUJIYAMA FCI',
+  'NAOMI OF KONPARU WAKATA JP',
+  'NEW TOKYO KENNEL\'S JODDY',
+  'ORANGE HILL JP DORIS',
+  'OSTARA OF M. EARLY SUMMER JP (2002)',
+  'PRIZE OF MATSUSHIMOSATO JP',
+  'RYUUCHI OF MARUKO NOMURA JP',
+  'SABINA OF MOONLIGHT',
+  'SHIRAYUKI OF TOKYO SEIZANSOW',
+  'SHONAN SUMIRESOW JP SAYAKO',
+  'SPITZ PARADISE ANGEL AKI',
+  'SPITZ PARADISE ANGEL MITO',
   'TAKE MARU OF YOKOHAMA TAKADA',
-  'EREN HOF HANKU FCI',
+  'TAKE OH OF YOKOHAMA TAKADA',
+  'WHITE CHERRY II OF TOKYO WASHINGTON',
+  'WHITE JOANNA OF MOON LIGHT',
+  'WHITE PEARL OF LONE HILL',
 ];
