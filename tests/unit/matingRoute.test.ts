@@ -102,12 +102,34 @@ describe('canonical URLs', () => {
     ['/mating?sire=stud&dam=bitch&g=06', '/mating?sire=stud&dam=bitch&g=6'],
     ['/mating?sire=stud&dam=bitch&g=6&q=x', '/mating?sire=stud&dam=bitch&g=6'],
     ['/mating?dam=bitch&g=40', '/mating?dam=bitch&g=10'],
-  ])('%s → 301 %s, before any read', async (from, to) => {
+  ])('%s → 301 %s, after the one D1 query and no R2 read', async (from, to) => {
     const { res, d1, r2 } = await get(from);
     expect(res.status).toBe(301);
     expect(location(res)).toBe(to);
-    expect(d1).toEqual([]);
+    expect(d1).toHaveLength(1);
+    expect(d1[0]).toMatch(/^SELECT slug, name, sex FROM dog WHERE slug/);
     expect(r2).toEqual([]);
+  });
+
+  it.each([
+    ['/mating?sire=old-stud&dam=bitch', '/mating?sire=stud&dam=bitch&g=5'],
+    ['/mating?sire=old-stud&dam=bitch&g=14', '/mating?sire=stud&dam=bitch&g=10'],
+    ['/mating?dam=bitch&sire=old-stud&g=6', '/mating?sire=stud&dam=bitch&g=6'],
+    ['/mating?sire=old-stud&g=40', '/mating?sire=stud&g=10'],
+  ])('a rename and a depth fix together: %s → one 301 %s', async (from, to) => {
+    const { res } = await get(from);
+    expect(res.status).toBe(301);
+    expect(location(res)).toBe(to);
+    // The target is canonical: following it does not redirect again.
+    expect((await get(to)).res.status).toBe(200);
+  });
+
+  it('a search page with a renamed parent keeps its query and page', async () => {
+    const { res } = await get('/mating?sire=old-stud&q=the%20bitch&page=1');
+    expect(res.status).toBe(301);
+    const to = new URL(res.headers.get('location')!);
+    expect([...to.searchParams]).toEqual([['sire', 'stud'], ['q', 'the bitch'], ['page', '1']]);
+    expect((await get(to.pathname + to.search)).res.status).toBe(200);
   });
 
   it('an old slug → 301 to the same URL with the new one, after one redirect lookup', async () => {

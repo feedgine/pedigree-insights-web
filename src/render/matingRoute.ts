@@ -4,7 +4,8 @@
  * Only I/O and canonicalisation: no pedigree is parsed, combined or walked here. For a
  * canonical URL with two known parents a request costs one D1 query (both rows at once)
  * and two R2 GETs, whose bodies go into the page as they are. A miss costs one redirect
- * lookup per missing parent, and R2 is read only once both dogs are known.
+ * lookup per missing parent, and R2 is read only once both dogs are known. Any URL that
+ * is not canonical is answered with a single 301 after the D1 read, never a chain.
  *
  * Kept out of the Function file, and typed by the few calls it makes on D1 and R2, so
  * the unit tests can count those calls against the budget with fakes — the Function
@@ -101,19 +102,6 @@ export async function handleMating(
   const g = depthParam(gGiven);
   const both = sireSlug != null && damSlug != null && sireSlug !== damSlug;
 
-  // Canonical form. With two parents: sire, dam, g — a missing or out-of-range depth and
-  // any other parameter are put right with one 301, before anything is read. Without a
-  // pair the page is a search, whose `q`/`page` belong to it; only the depth is put right.
-  if (both) {
-    const canonical = matingPath({ sire: sireSlug, dam: damSlug, g: g ?? DEFAULT_HYPOTHETICAL_MATING_GENERATIONS });
-    if (url.search !== searchOf(canonical)) return redirect(request, canonical);
-  } else if (gGiven != null && String(g) !== gGiven) {
-    const fixed = new URL(url);
-    if (g == null) fixed.searchParams.delete('g');
-    else fixed.searchParams.set('g', String(g));
-    return redirect(request, fixed.pathname + fixed.search);
-  }
-
   // One indexed query for both parents.
   const asked = [...new Set([sireSlug, damSlug].filter((s): s is string => s != null))];
   const found = new Map<string, DogRow>();
@@ -128,20 +116,37 @@ export async function handleMating(
 
   // A miss: the redirect table, once per missing parent — a shared mating URL survives a
   // rename or a merge as dog and report URLs do (R-5.2).
-  const missing = asked.filter((s) => !found.has(s));
-  if (missing.length > 0) {
-    const moved = new Map<string, string>();
-    for (const s of missing) {
-      const row = await env.DB.prepare('SELECT new_slug FROM redirect WHERE old_slug = ?')
-        .bind(s)
-        .first<{ new_slug: string }>();
-      if (!row?.new_slug) return notFound();
-      moved.set(s, row.new_slug);
+  const moved = new Map<string, string>();
+  for (const s of asked.filter((x) => !found.has(x))) {
+    const row = await env.DB.prepare('SELECT new_slug FROM redirect WHERE old_slug = ?')
+      .bind(s)
+      .first<{ new_slug: string }>();
+    if (!row?.new_slug) return notFound();
+    moved.set(s, row.new_slug);
+  }
+
+  // Canonical form, put right with ONE 301 — renamed parents and the depth together, so
+  // an old link with no depth does not bounce twice. With two parents: sire, dam, g, and
+  // nothing else. Without a pair the page is a search, whose `q`/`page` belong to it;
+  // only the parents and the depth are put right. Fixing the depth therefore costs the
+  // one D1 query above; R2 is still read only for a canonical pair.
+  const sireNow = sireSlug != null ? (moved.get(sireSlug) ?? sireSlug) : null;
+  const damNow = damSlug != null ? (moved.get(damSlug) ?? damSlug) : null;
+  if (sireNow != null && damNow != null && sireNow !== damNow) {
+    const canonical = matingPath({ sire: sireNow, dam: damNow, g: g ?? DEFAULT_HYPOTHETICAL_MATING_GENERATIONS });
+    if (url.search !== searchOf(canonical)) return redirect(request, canonical);
+  } else {
+    const gWrong = gGiven != null && String(g) !== gGiven;
+    if (moved.size > 0 || gWrong) {
+      // Edited, not rebuilt, so `q` and `page` survive (re-encoded: a space may come back
+      // as `+`, the same value — and a search page is not redirected for its query's form).
+      const fixed = new URL(url);
+      if (sireNow != null) fixed.searchParams.set('sire', sireNow);
+      if (damNow != null) fixed.searchParams.set('dam', damNow);
+      if (gWrong && g == null) fixed.searchParams.delete('g');
+      else if (gWrong) fixed.searchParams.set('g', String(g));
+      return redirect(request, fixed.pathname + fixed.search);
     }
-    const target = new URL(url);
-    if (sireSlug != null && moved.has(sireSlug)) target.searchParams.set('sire', moved.get(sireSlug)!);
-    if (damSlug != null && moved.has(damSlug)) target.searchParams.set('dam', moved.get(damSlug)!);
-    return redirect(request, target.pathname + target.search);
   }
 
   if (both) {
