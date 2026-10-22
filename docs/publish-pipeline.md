@@ -177,3 +177,54 @@ the affected pages both say so. The real catalogue has none (2026-09-11).
 `tools/measure-reports.ts` reproduces the measurements from `out/dog/` without touching
 the master, and can dump one dog's report for inspection.
 
+
+## The mating objects (added 2026-10-22)
+
+Every dog also gets a **mating object** — `out/mating/<shard>/<slug>.json`, sharded like
+the payloads and reports. The `/mating?sire=…&dam=…` page embeds the two parents' objects
+verbatim and the visitor's browser computes the analysis from them, so the server never
+walks or parses a pedigree (design: `openspec/changes/add-hypothetical-mating/design.md`).
+Built by `src/publish/mating.ts`.
+
+```
+{ slug, name,
+  self:  { sex?, dob?, preTitle?, postTitle?, registration?, praRcd4C2orf71?, samsKcnj10? },
+  cycles?: [{ child, parent, relation }],
+  grid:  (number | null)[],   // 1023 slots, heap order: slot 0 is the dog (always null,
+                              // see self); slot i's sire at 2i+1, dam at 2i+2; nine
+                              // generations of ancestors in slots 1–1022
+  dict:  [{ name, slug | null, sex?, sire?, dam?, preTitle?, postTitle?, registration?, dob? }],
+  coi:   { w: [[slug, weight], …], dropped } }
+```
+
+- **`grid` + `dict` carry the walk.** Each grid value indexes `dict`; each dict entry keeps
+  its parents' names, so a synthetic lookup answers the vendored `analyzeLinebreeding` and
+  classifier exactly as the database would within nine generations of each parent (the
+  litter at depth 10 is one generation deeper). A name with no record is `slug: null` and
+  ends its line, as on the dog page. Titles, registration and DOB are kept only for
+  generations 1–3, the cells the litter bracket draws.
+- **`coi.w` carries the COI.** With A = T·D·Tᵀ (`T` Wright's contributions, `D` the
+  Mendelian-sampling variances), storing `w_Xk = T_Xk·√D_k` makes the litter COI a dot
+  product: `F_litter = f(S, D) = ½ Σ w_Sk·w_Dk`, a merge join of two slug-sorted lists
+  (`src/mating/coi.ts`, shared by publish and browser). `T` is the vendored
+  `computeContributions`, full depth, plus the dog itself; weights are rounded to 12
+  significant digits. Every dog's own F comes from one parents-first pass using the
+  diagonal of the same identity, `F_X = ‖w_X‖² − 1`. `tests/unit/matingCoi.test.ts` holds
+  both against the vendored `createGeneticsEngine` within 1e-9.
+- **Stored embeddable.** Serialised with sorted keys, then `<`, `>`, U+2028 and U+2029 as
+  `\u` sequences — the rule `jsonForScript` applies to JSON-LD, shared as
+  `scriptSafeJson` in `src/render/escape.ts`. The Function can therefore place the bytes in
+  a `<script type="application/json">` block without parsing or re-escaping, and no value
+  can close the block. No trailing newline: the hash is over the stored bytes.
+- **The publish fails** if any pedigree reaches the 64-generation contribution cap,
+  because a truncated vector is a wrong COI with nothing on the page to say so.
+- **Own manifest** (`mating` in `state.json`), own written/unchanged counts. An object
+  changes when anything in the dog's full ancestry does.
+
+Measured on the master, 2026-10-22 (`tools/measure-mating.ts`): 63,778 objects,
+**2.276 GB** in total (gate A ≤ 4 GB); object size p50 27.8 KiB, p99 112.4 KiB, largest
+141.7 KiB; weight vector p50 168 entries, largest 1,459; deepest recorded line 40
+generations, none at the cap; no cycles. The F pass takes 28.5 s and the objects 62.7 s.
+The worst pair's parse + analysis at depth 10 takes 1.75 ms median in Node (gate B ≤ 50 ms)
+and its page is about 0.31 MB (gate C ≤ 2 MB). No pruning was needed (`dropped` is 0
+everywhere).

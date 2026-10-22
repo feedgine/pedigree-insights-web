@@ -12,6 +12,11 @@
  *   --rule <name>    index rule: `mvp` (default) or `producers` — see indexRule.ts
  *   --dry-run        compute and report, write nothing
  *
+ * Three kinds of object are written under `--out`, each with its own manifest in the
+ * state file and its own prefix in R2: `dog/` (page payloads), `report/` (Linebreeding +
+ * Foundation) and `mating/` (the ancestor grid and COI weight vector the `/mating` page
+ * embeds). Each is written only when its content hash changes.
+ *
  * **The state file is not a cache.** It holds the URL every dog was published under. Lose
  * it and the next run re-mints synthetic ids and can move URLs that are already in search
  * results — the one thing PRD R-5.2 forbids. It belongs in the backed-up part of the
@@ -23,11 +28,18 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { FOUNDATION_LIST_KEY, payloadKey, reportKey } from './constants';
+import { FOUNDATION_LIST_KEY, matingKey, payloadKey, reportKey } from './constants';
 import { FOUNDATION_DOGS } from './foundationDogs';
 import { fileDigest, loadPopulation } from './source';
 import { buildRelations } from './relations';
 import { producers, producersWithCompletePedigree } from './indexRule';
+import {
+  buildMatingObject,
+  matingHash,
+  populationGenetics,
+  serialiseMatingObject,
+  type MatingContext,
+} from './mating';
 import { buildPayload, contentHash, stableStringify, type DogPayload } from './payload';
 import {
   brokenEdgesOf,
@@ -116,6 +128,11 @@ function reportPath(out: string, slug: string): string {
   return join(out, reportKey(slug));
 }
 
+/** Where one dog's mating object lives — likewise the R2 key. */
+function matingPath(out: string, slug: string): string {
+  return join(out, matingKey(slug));
+}
+
 function removeIfPresent(file: string): void {
   try {
     rmSync(file);
@@ -170,6 +187,12 @@ interface RunReport {
   readonly reportsRestored: number;
   readonly largestReportBytes: number;
   readonly totalReportBytes: number;
+  /** The mating objects (grid + COI weight vector), one per dog, tracked separately. */
+  readonly matingWritten: number;
+  readonly matingUnchanged: number;
+  readonly matingRestored: number;
+  readonly largestMatingBytes: number;
+  readonly totalMatingBytes: number;
   /** Foundation-list names that match no record — a misspelling, or a dog since renamed. */
   readonly foundationUnmatched: readonly string[];
   /** Parent edges that close a cycle in the master — data errors, broken for the reports. */
@@ -212,6 +235,13 @@ async function main(): Promise<void> {
     const parsed = JSON.parse(raw) as { reports?: Manifest };
     return parsed.reports ?? {};
   });
+  // The mating objects have a third manifest: one dog's object changes whenever anything
+  // in its full ancestry does (the COI vector is full depth), which neither the payload
+  // nor the report follows exactly.
+  const previousMating = readJson<Manifest>(statePath, {}, (raw) => {
+    const parsed = JSON.parse(raw) as { mating?: Manifest };
+    return parsed.mating ?? {};
+  });
   const firstRun = Object.keys(previousState.assignments).length === 0;
 
   const { slugByKey, state, report: slugReport } = assignSlugs(
@@ -242,6 +272,14 @@ async function main(): Promise<void> {
     broken,
   };
   const foundationUnmatched = unmatchedFoundationDogs(population.lookup);
+  // Every dog's F and D, parents first, before any object is built: an object's weights
+  // need D for every ancestor. Fails the run if a pedigree reaches the contribution cap.
+  const mctx: MatingContext = {
+    lookup: rctx.lookup,
+    slugByKey,
+    genetics: populationGenetics(population.animals, rctx.lookup),
+    cycles: pedigreeCycles,
+  };
 
   const manifest: Manifest = {};
   const reportsManifest: Manifest = {};
@@ -256,6 +294,12 @@ async function main(): Promise<void> {
   let reportsRestored = 0;
   let largestReportBytes = 0;
   let totalReportBytes = 0;
+  const matingManifest: Manifest = {};
+  let matingWritten = 0;
+  let matingUnchanged = 0;
+  let matingRestored = 0;
+  let largestMatingBytes = 0;
+  let totalMatingBytes = 0;
 
   for (const animal of population.animals) {
     const payload: DogPayload = buildPayload(ctx, animal);
@@ -290,6 +334,24 @@ async function main(): Promise<void> {
       if (!opts.dryRun) writeFile(reportFile, reportsJson);
     }
 
+    // Stored exactly as `serialiseMatingObject` returns it — no trailing newline — because
+    // the Function embeds the bytes verbatim and the hash is over those bytes.
+    const matingJson = serialiseMatingObject(buildMatingObject(mctx, animal));
+    const matingDigest = matingHash(matingJson);
+    matingManifest[payload.slug] = matingDigest;
+    const matingBytes = Buffer.byteLength(matingJson);
+    totalMatingBytes += matingBytes;
+    if (matingBytes > largestMatingBytes) largestMatingBytes = matingBytes;
+
+    const matingFile = matingPath(opts.out, payload.slug);
+    if (previousMating[payload.slug] === matingDigest && (opts.dryRun || existsSync(matingFile))) {
+      matingUnchanged += 1;
+    } else {
+      if (previousMating[payload.slug] === matingDigest) matingRestored += 1;
+      matingWritten += 1;
+      if (!opts.dryRun) writeFile(matingFile, matingJson);
+    }
+
     const file = payloadPath(opts.out, payload.slug);
     if (previousManifest[payload.slug] === hash) {
       if (opts.dryRun || existsSync(file)) {
@@ -309,6 +371,9 @@ async function main(): Promise<void> {
     for (const slug of removed) removeIfPresent(payloadPath(opts.out, slug));
     for (const slug of Object.keys(previousReports)) {
       if (reportsManifest[slug] === undefined) removeIfPresent(reportPath(opts.out, slug));
+    }
+    for (const slug of Object.keys(previousMating)) {
+      if (matingManifest[slug] === undefined) removeIfPresent(matingPath(opts.out, slug));
     }
   }
 
@@ -350,6 +415,11 @@ async function main(): Promise<void> {
     reportsRestored,
     largestReportBytes,
     totalReportBytes,
+    matingWritten,
+    matingUnchanged,
+    matingRestored,
+    largestMatingBytes,
+    totalMatingBytes,
     foundationUnmatched,
     pedigreeCycles,
   };
@@ -363,7 +433,12 @@ async function main(): Promise<void> {
     writeFile(
       statePath,
       `${JSON.stringify(
-        { slugs: JSON.parse(serialiseSlugState(state)), manifest, reports: reportsManifest },
+        {
+          slugs: JSON.parse(serialiseSlugState(state)),
+          manifest,
+          reports: reportsManifest,
+          mating: matingManifest,
+        },
         null,
         2,
       )}\n`,
@@ -383,6 +458,8 @@ async function main(): Promise<void> {
     `payload size      largest ${largestPayloadBytes} B, total ${(totalPayloadBytes / 1e6).toFixed(1)} MB`,
     `reports written   ${reportsWritten}   unchanged ${reportsUnchanged}`,
     `report size       largest ${largestReportBytes} B, total ${(totalReportBytes / 1e6).toFixed(1)} MB`,
+    `mating objects    written ${matingWritten}   unchanged ${matingUnchanged}`,
+    `mating size       largest ${largestMatingBytes} B, total ${(totalMatingBytes / 1e6).toFixed(1)} MB`,
     `slugs             ${slugReport.assigned} new, ${slugReport.moved.length} moved, ` +
       `${slugReport.collisions.length} collisions, ${slugReport.retired} retired`,
     `no registration   ${slugReport.withoutRegistration}  (cannot be followed through a rename)`,
@@ -401,6 +478,9 @@ async function main(): Promise<void> {
   }
   if (reportsRestored > 0) {
     lines.push(`restored reports  ${reportsRestored} report(s) were missing from the output directory`);
+  }
+  if (matingRestored > 0) {
+    lines.push(`restored mating   ${matingRestored} mating object(s) were missing from the output directory`);
   }
   if (foundationUnmatched.length > 0) {
     lines.push(
