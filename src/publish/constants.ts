@@ -73,3 +73,15 @@ export function reportKey(slug: string): string {
  */
 export const FOUNDATION_LIST_KEY = 'report/_foundation.json';
 
+
+/**
+ * Where a dog's mating object lives — its ancestor grid and COI weight vector, which the
+ * `/mating` page embeds verbatim for the browser to compute from. Sharded as payloads and
+ * reports are, and its own prefix, so it has its own `rclone sync` line and its own
+ * manifest: a change to one dog's ancestry rewrites mating objects that neither the page
+ * payload nor the report would have touched.
+ */
+export function matingKey(slug: string): string {
+  const shard = slug.slice(0, 2).padEnd(2, '_');
+  return `mating/${shard}/${slug}.json`;
+}

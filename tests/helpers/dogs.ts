@@ -89,3 +89,56 @@ export function lookupOver(animals: readonly Animal[]): (name: string) => Animal
 export function byKeyOver(animals: readonly Animal[]): Map<string, Animal> {
   return new Map(animals.map((a) => [a.name.trim().toLowerCase(), a]));
 }
+
+/**
+ * A deterministic, deliberately line-bred population (the generator `reports.test.ts`
+ * uses, shared here for the mating tests).
+ *
+ * Founders first, then litters whose parents come from the previous two generations with
+ * a heavy bias towards a few popular sires — what a closed breed looks like. Same seed,
+ * same dogs, every run, so a parity test fails for a reason and not a random one.
+ */
+export function linebredPopulation(
+  seed: number,
+  founders: number,
+  generations: number,
+  litterSize: number,
+): Animal[] {
+  let s = seed >>> 0;
+  const rnd = () => {
+    // xorshift32
+    s ^= s << 13; s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 0x100000000;
+  };
+  const all: Animal[] = [];
+  let males: Animal[] = [];
+  let females: Animal[] = [];
+  for (let i = 0; i < founders; i += 1) {
+    const sex = i % 2 === 0 ? 'M' : 'F';
+    const a = dog(`FOUNDER ${i}`, { sex, registration: `F${i}` });
+    all.push(a);
+    (sex === 'M' ? males : females).push(a);
+  }
+  let n = 0;
+  for (let g = 1; g <= generations; g += 1) {
+    const nextM: Animal[] = [];
+    const nextF: Animal[] = [];
+    const litters = Math.max(2, Math.floor(females.length / 2));
+    for (let l = 0; l < litters; l += 1) {
+      const sire = males[Math.floor(rnd() ** 3 * males.length)];
+      const dam = females[Math.floor(rnd() * females.length)];
+      for (let p = 0; p < litterSize; p += 1) {
+        const sex = rnd() < 0.5 ? 'M' : 'F';
+        const a = dog(`GEN${g} PUP ${n}`, { sex, registration: `P${n}`, sire: sire.name, dam: dam.name });
+        n += 1;
+        all.push(a);
+        (sex === 'M' ? nextM : nextF).push(a);
+      }
+    }
+    males = [...nextM, ...males.slice(0, 3)];
+    females = [...nextF, ...females.slice(0, 3)];
+  }
+  return all;
+}

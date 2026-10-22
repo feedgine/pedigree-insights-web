@@ -31,7 +31,20 @@ export function esc(value: string | number | null | undefined): string {
  * unicode keeps the JSON valid and the block intact.
  */
 export function jsonForScript(value: unknown): string {
-  return JSON.stringify(value, null, 2)
+  return scriptSafeJson(JSON.stringify(value, null, 2));
+}
+
+/**
+ * The rule `jsonForScript` applies, for JSON that is already a string.
+ *
+ * The mating objects are serialised once, at publish, with this applied, so the Function
+ * can place their bytes inside a `<script type="application/json">` block without parsing
+ * or re-escaping them. Every `\u` sequence written here decodes to the character it
+ * replaced — the characters only ever occur inside JSON strings — so the value parses back
+ * unchanged.
+ */
+export function scriptSafeJson(json: string): string {
+  return json
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/\u2028/g, '\\u2028')
