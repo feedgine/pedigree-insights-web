@@ -49,3 +49,4 @@ deploy.local.env
 /openspec/
 # Claude Code commands and skills installed by `openspec init`.
 /.claude/
+/20??-??-??-*.txt

@@ -85,6 +85,15 @@ describe('a canonical pair', () => {
     expect(body).toContain(`<script src="${SCRIPT}" defer></script>`);
   });
 
+  it('offers the swap from the D1 sex, with no extra query', async () => {
+    const right = await get('/mating?sire=stud&dam=bitch&g=6');
+    expect(right.body).not.toContain('Swap sire and dam');
+    const wrong = await get('/mating?sire=bitch&dam=stud&g=6');
+    expect(wrong.res.status).toBe(200);
+    expect(wrong.body).toContain('<a href="/mating?sire=stud&amp;dam=bitch&amp;g=6" rel="nofollow">Swap sire and dam</a>');
+    expect(wrong.d1).toEqual(['SELECT slug, name, sex FROM dog WHERE slug IN (?1, ?2)']);
+  });
+
   it('an etag from both objects, the date and the script; the reports’ cache policy', async () => {
     const { res } = await get('/mating?sire=stud&dam=bitch&g=6');
     expect(res.headers.get('etag')).toBe(`"e-${matingKey('stud').length}-e-${matingKey('bitch').length}-2026-10-22-0123456789ab"`);

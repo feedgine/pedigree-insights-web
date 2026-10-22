@@ -3,7 +3,8 @@
  * (design §6).
  *
  * The server does no pedigree work here. With both parents known, the page carries them
- * linked to their dog pages, the depth and swap/change controls, the two stored mating
+ * linked to their dog pages, then the depth and swap/change controls, then
+ * `#mating-analysis`, where the script puts the litter bracket first. The two stored mating
  * objects as `application/json` data blocks **inserted byte for byte** (they were made
  * safe to embed at publish, `scriptSafeJson`), and one external script that computes and
  * renders the analysis into `#mating-analysis`. With scripting off, what is left is
@@ -37,6 +38,8 @@ import { SITE, matingPath, type SiteConfig } from './site';
 export interface MatingParent {
   readonly slug: string;
   readonly name: string;
+  /** `'M'`, `'F'`, or null when unrecorded; decides whether swapping is offered. */
+  readonly sex: string | null;
 }
 
 /** Both parents known and distinct: the full page. */
@@ -102,17 +105,25 @@ function depthForm(v: MatingPairView): string {
   );
 }
 
+/**
+ * Swapping is offered only where it could fix something: a sire not recorded as male or a
+ * dam not recorded as female. An unrecorded sex counts, since the visitor may know better.
+ */
+export function swapOffered(sire: MatingParent, dam: MatingParent): boolean {
+  return sire.sex !== 'M' || dam.sex !== 'F';
+}
+
 /** The full page: parents, controls, data blocks, the script, and the place it writes. */
 export function renderMatingPage(v: MatingPairView, site: SiteConfig = SITE): string {
   const g = v.generations;
-  const controls =
-    '<p class="mating-controls">' +
-    [
-      matingLink(matingPath({ sire: v.dam.slug, dam: v.sire.slug, g }), 'Swap sire and dam'),
-      matingLink(matingPath({ dam: v.dam.slug, g }), 'Change sire'),
-      matingLink(matingPath({ sire: v.sire.slug, g }), 'Change dam'),
-    ].join(' · ') +
-    '</p>';
+  const links = [
+    matingLink(matingPath({ dam: v.dam.slug, g }), 'Change sire'),
+    matingLink(matingPath({ sire: v.sire.slug, g }), 'Change dam'),
+  ];
+  if (swapOffered(v.sire, v.dam)) {
+    links.unshift(matingLink(matingPath({ sire: v.dam.slug, dam: v.sire.slug, g }), 'Swap sire and dam'));
+  }
+  const controls = `<p class="mating-controls">${links.join(' · ')}</p>`;
 
   const body = lines(
     '<div class="subject">',

@@ -14,8 +14,8 @@ import { matingPath } from '../../src/render/site.ts';
  * [DRAFT — requires Yuliya's review]
  */
 
-const SIRE = { slug: 'kennel-alfa', name: 'KENNEL ALFA' };
-const DAM = { slug: 'kennel-beta', name: 'KENNEL BETA' };
+const SIRE = { slug: 'kennel-alfa', name: 'KENNEL ALFA', sex: 'M' };
+const DAM = { slug: 'kennel-beta', name: 'KENNEL BETA', sex: 'F' };
 
 /** Stored bytes as the publish writes them — including an escaped closing tag. */
 const sireObject = scriptSafeJson(JSON.stringify({ slug: 'kennel-alfa', name: 'A </script> B', grid: [null] }));
@@ -78,15 +78,46 @@ describe('the shell with both parents', () => {
     );
   });
 
-  it('offers depth 3–10 as a GET form, and swap/change links, all nofollow', () => {
+  it('offers depth 3–10 as a GET form, and change links, all nofollow', () => {
     const html = pair();
     expect(html).toContain('<form class="mating-controls mating-depth" action="/mating" method="get">');
     expect(html.match(/<option value="\d+"/g)).toHaveLength(8);
     expect(html).toContain('<option value="6" selected>6</option>');
-    expect(html).toContain('<a href="/mating?sire=kennel-beta&amp;dam=kennel-alfa&amp;g=6" rel="nofollow">Swap sire and dam</a>');
-    expect(html).toContain('<a href="/mating?dam=kennel-beta&amp;g=6" rel="nofollow">Change sire</a>');
-    expect(html).toContain('<a href="/mating?sire=kennel-alfa&amp;g=6" rel="nofollow">Change dam</a>');
+    expect(html).toContain(
+      '<p class="mating-controls"><a href="/mating?dam=kennel-beta&amp;g=6" rel="nofollow">Change sire</a> · ' +
+        '<a href="/mating?sire=kennel-alfa&amp;g=6" rel="nofollow">Change dam</a></p>',
+    );
     for (const a of matingLinks(html)) expect(a).toContain('rel="nofollow"');
+  });
+
+  it('offers no swap for a male sire and a female dam', () => {
+    expect(pair()).not.toContain('Swap sire and dam');
+  });
+
+  it('offers the swap, first on the control line, when a parent is unsexed or on the wrong side', () => {
+    const swap =
+      '<p class="mating-controls"><a href="/mating?sire=kennel-beta&amp;dam=kennel-alfa&amp;g=6" rel="nofollow">Swap sire and dam</a> · ';
+    for (const view of [
+      { sire: { ...SIRE, sex: null } }, // sire's sex unrecorded
+      { dam: { ...DAM, sex: null } }, // dam's sex unrecorded
+      { dam: { ...DAM, sex: 'M' } }, // a male given as dam
+      { sire: { ...SIRE, sex: 'F' } }, // a female given as sire
+    ]) {
+      expect(pair(view)).toContain(swap);
+    }
+  });
+
+  it('reads in page order: parents, depth form, control line, then the analysis slot', () => {
+    const html = pair({ dam: { ...DAM, sex: null } });
+    const at = [
+      '<ul class="report-stats mating-parents">',
+      '<form class="mating-controls mating-depth"',
+      '<p class="mating-controls">',
+      '<div id="mating-analysis"',
+      '<noscript>',
+    ].map((marker) => html.indexOf(marker));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((x, y) => x - y));
   });
 
   it('is noindex, follow, with the canonical mating URL', () => {

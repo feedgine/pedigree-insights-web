@@ -45,9 +45,7 @@ const SEARCH_CACHE_CONTROL = 'public, max-age=60';
 
 const SLUG = /^[a-z0-9-]+$/;
 
-interface DogRow extends MatingParent {
-  readonly sex: string | null;
-}
+type DogRow = MatingParent;
 
 function html(body: string, status: number, cacheControl: string, etag?: string): Response {
   const headers: Record<string, string> = {
@@ -160,8 +158,8 @@ export async function handleMating(
     if (s === null || d === null) return notFound();
     const asOf = now.toISOString().slice(0, 10);
     const body = renderMatingPage({
-      sire: { slug: sire.slug, name: sire.name },
-      dam: { slug: dam.slug, name: dam.name },
+      sire: { slug: sire.slug, name: sire.name, sex: sire.sex },
+      dam: { slug: dam.slug, name: dam.name, sex: dam.sex },
       generations: g ?? DEFAULT_HYPOTHETICAL_MATING_GENERATIONS,
       asOf,
       sireObject: await s.text(),
@@ -186,7 +184,7 @@ export async function handleMating(
   let results: SearchResult | null = null;
   if (query !== '') results = await searchDogs(env.DB, query, page);
 
-  const parent = (r: DogRow | null): MatingParent | null => (r ? { slug: r.slug, name: r.name } : null);
+  const parent = (r: DogRow | null): MatingParent | null => (r ? { slug: r.slug, name: r.name, sex: r.sex } : null);
   return html(
     renderMatingChoosePage({
       sire: parent(sire),

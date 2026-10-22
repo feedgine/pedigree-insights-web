@@ -47,15 +47,22 @@ function nameLink(name: string, slug: string | undefined): string {
   return slug != null ? `<a href="/dog/${esc(slug)}">${esc(name)}</a>` : `<span>${esc(name)}</span>`;
 }
 
+/**
+ * COI and AVK. Labels only — the values are the vendored ones: AVK is `uniqueAncestors` over
+ * the possible positions, and the recorded positions are `totalCrosses`. Both counts come
+ * from the same walk and leave out a name with no record, so U ≤ R ≤ P always holds. AVK
+ * falls for gaps as well as for repeats, which is why the recorded positions sit beside it.
+ */
 function stats(a: MatingAnalysis): string {
-  const slots = 2 ** (a.generations + 1) - 2;
+  const positions = 2 ** (a.generations + 1) - 2;
   const bound = a.litterCoiBound >= BOUND_SHOWN_FROM ? ` ± ${a.litterCoiBound.toFixed(2)}` : '';
   return lines(
     '<ul class="report-stats">',
     `<li>Litter inbreeding coefficient (full-depth value): <strong>${pct(a.litterCoi)}${bound}</strong></li>`,
-    `<li>Ancestor loss (AVK), ${a.generations} generations (${a.uniqueAncestors} unique / ${slots}): ` +
-      `<strong>${pct(a.litterAvk)}</strong></li>`,
-    `<li>Total crosses walked (incl. repeats), ${a.generations} generations: <strong>${a.totalCrosses}</strong></li>`,
+    `<li>AVK, ${a.generations} generations: <strong>${pct(a.litterAvk)}</strong> — ` +
+      `${a.uniqueAncestors} different dogs in ${positions} positions ` +
+      '(100% = every position filled by a different dog)</li>',
+    `<li>Ancestor positions recorded: <strong>${a.totalCrosses}</strong> of ${positions}</li>`,
     '</ul>',
   );
 }
@@ -170,13 +177,13 @@ export function renderMatingAnalysis(
 ): string {
   return lines(
     '<section class="mating-result">',
+    '<h2>Planned litter, four generations</h2>',
+    renderBracket(litterBracket(sire, dam)),
     stats(a),
     warnings(a, asOf),
     notes(a),
     ancestors(a, slugIndex(sire, dam)),
     cycleNote(a),
-    '<h2>Planned litter, four generations</h2>',
-    renderBracket(litterBracket(sire, dam)),
     '</section>',
   );
 }

@@ -94,7 +94,11 @@ describe('the analysis (task 6.3)', () => {
       'UNREL F',
     );
     expect(html).toContain('Litter inbreeding coefficient (full-depth value): <strong>0.00%</strong>');
-    expect(html).toMatch(/Ancestor loss \(AVK\), 5 generations \(\d+ unique \/ 62\)/);
+    expect(html).toMatch(
+      /<li>AVK, 5 generations: <strong>[\d.]+%<\/strong> — \d+ different dogs in 62 positions \(100% = every position filled by a different dog\)<\/li>/,
+    );
+    expect(html).toMatch(/<li>Ancestor positions recorded: <strong>\d+<\/strong> of 62<\/li>/);
+    expect(html).not.toContain('Total crosses walked');
     expect(html).toContain('<strong>Outcross</strong>');
     expect(html).toContain('<h2>Common ancestors, 5 generations</h2>');
     expect(html).toContain('No ancestor appears at least 2 times within 5 generations.');
@@ -173,5 +177,70 @@ describe('the analysis (task 6.3)', () => {
     );
     expect(html).toContain('<strong>1 pedigree cycle detected</strong>');
     expect(html).toMatch(/<li><strong>[BCD]<\/strong> — (Sire|Dam) = [BCD] \(already an ancestor\)<\/li>/);
+  });
+
+  it('reads in page order: bracket, stats, warnings, notes, common ancestors, cycle note', () => {
+    // The cycle fixture again, with both parents carriers, so every section is present.
+    const html = page(
+      [
+        dog('A', { sex: 'M' }),
+        dog('M', { sex: 'F' }),
+        dog('B', { sex: 'M', sire: 'D', dam: 'M' }),
+        dog('C', { sex: 'M', sire: 'B', dam: 'M' }),
+        dog('D', { sex: 'M', sire: 'C', dam: 'M', praRcd4C2orf71: 'Carrier' }),
+        dog('E', { sex: 'F', sire: 'C', dam: 'M', praRcd4C2orf71: 'Carrier' }),
+      ],
+      'D',
+      'E',
+    );
+    const at = [
+      '<h2>Planned litter, four generations</h2>',
+      'class="bracket"',
+      'Litter inbreeding coefficient',
+      '<li>AVK, ',
+      '<strong>Checks as of',
+      '<h2>Line-breeding notes',
+      '<h2>Common ancestors',
+      '<table class="report">',
+      'pedigree cycle detected',
+    ].map((marker) => html.indexOf(marker));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((x, y) => x - y));
+  });
+
+  it('counts a name-only ancestor in neither U nor R, so U ≤ R ≤ P', () => {
+    // GHOST is both parents' sire but has no record; GRAN, their dam, has one. Recorded
+    // positions: SIRE, DAM, GRAN twice = 4; different dogs: SIRE, DAM, GRAN = 3. Counting
+    // GHOST on either side alone would break the shared basis (U 4, or R 6).
+    const animals = [
+      dog('GRAN', { sex: 'F' }),
+      dog('SIRE', { sex: 'M', sire: 'GHOST', dam: 'GRAN' }),
+      dog('DAM', { sex: 'F', sire: 'GHOST', dam: 'GRAN' }),
+    ];
+    const obj = objects(animals);
+    expect(obj('SIRE').dict.find((e) => e.name === 'GHOST')?.slug).toBeNull();
+
+    const a = computeMating(obj('SIRE'), obj('DAM'), 5, AS_OF);
+    const positions = 2 ** (5 + 1) - 2;
+    expect(a.uniqueAncestors).toBe(3);
+    expect(a.totalCrosses).toBe(4);
+    expect(a.uniqueAncestors).toBeLessThanOrEqual(a.totalCrosses);
+    expect(a.totalCrosses).toBeLessThanOrEqual(positions);
+
+    const html = renderMatingAnalysis(a, obj('SIRE'), obj('DAM'), AS_OF);
+    expect(html).toContain(
+      '<li>AVK, 5 generations: <strong>4.84%</strong> — 3 different dogs in 62 positions ' +
+        '(100% = every position filled by a different dog)</li>',
+    );
+    expect(html).toContain('<li>Ancestor positions recorded: <strong>4</strong> of 62</li>');
+  });
+
+  it('keeps U ≤ R ≤ P at every depth on a line-bred pedigree with gaps', () => {
+    const obj = objects(halfSibs());
+    for (let g = 3; g <= 10; g += 1) {
+      const a = computeMating(obj('HALF BROTHER'), obj('HALF SISTER'), g, AS_OF);
+      expect(a.uniqueAncestors).toBeLessThanOrEqual(a.totalCrosses);
+      expect(a.totalCrosses).toBeLessThanOrEqual(2 ** (g + 1) - 2);
+    }
   });
 });
