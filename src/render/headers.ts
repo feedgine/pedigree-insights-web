@@ -11,7 +11,7 @@
  * and spread into every `Response` the three Functions return.
  *
  * **What these are and are not worth.** This site has no cookies, no sign-in, no session,
- * no stored user input and no JavaScript. The real exposure they close is small, and only
+ * no stored user input and no JavaScript outside the `/mating` calculator. The real exposure they close is small, and only
  * HSTS closes anything a visitor could otherwise suffer. They are cheap hygiene, added
  * 2026-09-02 after a Sucuri report, not a fix for a live risk.
  *
@@ -67,6 +67,27 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = Object.freeze(
   'strict-transport-security': HSTS,
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
+});
+
+/**
+ * The policy for `/mating` alone: the site policy with `script-src 'self'` in place of
+ * `'none'` (design §7, owner-agreed 2026-10-22).
+ *
+ * The mating page is a calculator, and its analysis is computed in the visitor's browser
+ * by one same-origin script, `/assets/mating.<hash>.js`. `'self'` admits that file and
+ * nothing inline: the page carries no inline script, and its two data blocks are
+ * `application/json`, which `script-src` does not govern. `default-src 'none'` is kept, so
+ * `connect-src` stays closed and the script could not fetch anything even if it tried.
+ *
+ * Set by `functions/mating.ts` only. `_headers` is not changed, so every static page —
+ * and every other Function, which spreads `SECURITY_HEADERS` — keeps `script-src 'none'`.
+ */
+const MATING_CSP = CSP.replace("script-src 'none'", "script-src 'self'");
+
+/** `SECURITY_HEADERS` with the `/mating` policy. */
+export const MATING_HEADERS: Readonly<Record<string, string>> = Object.freeze({
+  ...SECURITY_HEADERS,
+  'content-security-policy': MATING_CSP,
 });
 
 /**

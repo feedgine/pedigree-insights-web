@@ -264,6 +264,8 @@ export function robotsTxt(site: SiteConfig = SITE): string {
     'Allow: /',
     '# Search results are a view of the catalogue, not part of it.',
     'Disallow: /search',
+    '# The mating page is a calculator over two catalogue pages, not a page of its own.',
+    'Disallow: /mating',
     'Crawl-delay: 10',
     '',
     `Sitemap: ${site.origin}/sitemap.xml`,
@@ -282,7 +284,7 @@ export function robotsTxt(site: SiteConfig = SITE): string {
  */
 export function routesJson(): string {
   return `${JSON.stringify(
-    { version: 1, include: ['/dog/*', '/api/*', '/search'], exclude: ['/assets/*'] },
+    { version: 1, include: ['/dog/*', '/api/*', '/search', '/mating'], exclude: ['/assets/*'] },
     null,
     2,
   )}\n`;

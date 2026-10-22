@@ -180,7 +180,7 @@ ul.plain li { margin: 0 0 8px; }
 .pager .pager-where { margin-left: auto; margin-right: auto; }
 
 /* The two report links under the bracket. */
-p.reports { font-size: 14px; color: var(--ink-soft); margin: 14px 0 0; }
+p.reports, p.mating-link { font-size: 14px; color: var(--ink-soft); margin: 14px 0 0; }
 
 table.dna { border-collapse: collapse; font-size: 15px; }
 table.dna th, table.dna td { text-align: left; padding: 4px 22px 4px 0; border-bottom: 1px solid var(--rule); }
@@ -217,6 +217,18 @@ table.report tr.absent td { color: var(--ink-faint); }
 .sex-M { background: #4a78b5; }
 .sex-F { background: #c2618f; }
 .empty { color: var(--ink-soft); }
+
+/* ---- the mating page ----------------------------------------------------
+   The report vocabulary again, plus the controls, which are plain links and
+   GET forms (they work with scripting off) and are dropped from print. Notes
+   carry their desktop grade as a small label, never as a colour alone. */
+.mating-controls { font-size: 14px; margin: 0 0 12px; }
+form.mating-depth, form.mating-search { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+form.mating-search { margin: 0 0 14px; }
+ul.mating-notes { margin: 0 0 8px; padding-left: 18px; font-size: 14px; }
+ul.mating-notes li { margin: 0 0 6px; }
+.grade { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 0 6px; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-soft); }
+.grade-match .grade { border-color: #7a63a8; color: #4b3b70; }
 `;
 
 const FOOT_CSS = `
@@ -240,7 +252,8 @@ const PRINT_CSS = `
   .bracket { --row-h: 26px; }
   .cell .nm { font-size: 9pt; }
   .cell .tt, .cell .dt { font-size: 7.5pt; }
-  .site-head, .site-search, .crumbs, .site-foot .fine, .report-nav, p.reports { display: none; }
+  .site-head, .site-search, .crumbs, .site-foot .fine, .report-nav, p.reports,
+  .mating-controls, .mating-search, p.mating-link { display: none; }
   .table-scroll { overflow: visible; }
   table.report { font-size: 9pt; }
   .subject-photo, figure.photo { display: none !important; }

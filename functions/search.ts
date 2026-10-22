@@ -25,53 +25,22 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
-import { accentFreeName } from '../src/render/text';
-import { MIN_TOKEN, indexToken, prefixUpperBound } from '../src/publish/searchWords';
 import { formatDmy } from '../src/vendor/pedigree-insights/schema';
 import { esc } from '../src/render/escape';
 import { renderPage } from '../src/render/layout';
 import { SITE } from '../src/render/site';
 import { SECURITY_HEADERS } from '../src/render/headers';
+import {
+  MIN_TOKEN,
+  PER_PAGE,
+  pageParam,
+  pager,
+  searchDogs,
+  type SearchRow,
+} from '../src/render/searchQuery';
 
 interface Env {
   DB: D1Database;
-}
-
-/** Results per page. Enough that most searches are one page, few enough to scan. */
-const PER_PAGE = 100;
-
-/** A ceiling on paging, so a crawler cannot walk `?page=` forever. */
-const MAX_PAGE = 200;
-
-interface Row {
-  slug: string;
-  name: string;
-  dob: string | null;
-  registration: string | null;
-  offspring_count: number;
-}
-
-/** `?page=` as a sane integer. Anything unparseable, negative or absurd becomes page 1. */
-function pageParam(raw: string | null): number {
-  const n = Number.parseInt(raw ?? '1', 10);
-  if (!Number.isFinite(n) || n < 1 || n > MAX_PAGE) return 1;
-  return n;
-}
-
-/** A pager link, or plain text at the ends so there is never a link to nothing. */
-function pager(query: string, page: number, pages: number): string {
-  if (pages <= 1) return '';
-  const href = (p: number) => `/search?q=${encodeURIComponent(query)}&amp;page=${p}`;
-  const prev =
-    page > 1
-      ? `<a href="${href(page - 1)}" rel="prev">← Previous</a>`
-      : '<span>← Previous</span>';
-  const next =
-    page < pages ? `<a href="${href(page + 1)}" rel="next">Next →</a>` : '<span>Next →</span>';
-  return (
-    `<nav class="pager" aria-label="Search results pages">${prev}` +
-    `<span class="pager-where">Page ${page} of ${pages}</span>${next}</nav>`
-  );
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -80,64 +49,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const page = pageParam(url.searchParams.get('page'));
 
   let total = 0;
-  let rows: Row[] = [];
+  let pages = 1;
+  let rows: readonly SearchRow[] = [];
   /** The query carries nothing long enough to look up — see `MIN_TOKEN`. */
   let tooShort = false;
 
+  // The query, the refusal and the limits live in `searchQuery.ts`, shared with the
+  // `/mating` page's search for a missing parent.
   if (query !== '') {
-    const needle = accentFreeName(query).toLowerCase();
-
-    // One path, and a refusal.
-    //
-    // `search_word` is a range scan over the suffixes of every distinct word, which is
-    // what makes "a fragment anywhere inside a name" something an index can serve at all
-    // — the reasoning is in `searchWords.ts`. It narrows; `instr` then decides, on that
-    // small set rather than on 62,466 rows. `instr` still has to be there because a query
-    // of two words can span a separator, which no single token covers.
-    //
-    // The narrowing never loses a dog. The longest token of the query contains no
-    // separator, so any name containing the whole query contains that token inside a
-    // single word — which is exactly what the suffix range finds. Checked against the
-    // real catalogue: 145 queries, no difference from a plain scan.
-    //
-    // `instr()` and not `LIKE '%…%'`, for two reasons found live: D1 caps a LIKE pattern
-    // at 50 bytes, which katakana reaches in 17 characters, and LIKE reads a `%` typed by
-    // the visitor as a wildcard.
-    //
-    // A query with no token of at least `MIN_TOKEN` characters is REFUSED rather than
-    // served. It could only be answered by scanning the whole table, it would match most
-    // of the catalogue, and with 200 pages reachable one crawler could spend a day's
-    // database allowance on it — which is how search went down on 2026-09-01. A single
-    // letter is not a search anyone means.
-    const token = indexToken(needle);
-    tooShort = token === null;
-
-    if (token !== null) {
-      const where =
-        'g.slug IN (SELECT wd.slug FROM search_word s ' +
-        'JOIN search_word_dog wd ON wd.word = s.word ' +
-        'WHERE s.suffix >= ?1 AND s.suffix < ?2) ' +
-        'AND instr(g.name_folded, ?3) > 0';
-      const upper = prefixUpperBound(token);
-
-      const count = await context.env.DB.prepare(
-        `SELECT COUNT(*) AS n FROM dog g WHERE ${where}`,
-      )
-        .bind(token, upper, needle)
-        .first<{ n: number }>();
-      total = count?.n ?? 0;
-
-      const result = await context.env.DB.prepare(
-        'SELECT g.slug, g.name, g.dob, g.registration, g.offspring_count FROM dog g ' +
-          `WHERE ${where} ORDER BY g.name COLLATE NOCASE LIMIT ?4 OFFSET ?5`,
-      )
-        .bind(token, upper, needle, PER_PAGE, (page - 1) * PER_PAGE)
-        .all<Row>();
-      rows = result.results ?? [];
-    }
+    ({ total, pages, rows, tooShort } = await searchDogs(context.env.DB, query, page));
   }
 
-  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const first = (page - 1) * PER_PAGE + 1;
   const last = first + rows.length - 1;
 
@@ -176,7 +98,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             '</li>',
         )
         .join('')}</ul>`,
-      pager(query, page, pages),
+      pager((p) => `/search?q=${encodeURIComponent(query)}&amp;page=${p}`, page, pages),
       '</section>',
     ].join('\n');
   }

@@ -138,3 +138,17 @@ export const REPORT_KINDS: readonly ReportKind[] = ['linebreeding', 'foundation'
 export function reportUrl(site: SiteConfig, slug: string, kind: ReportKind): string {
   return `${site.origin}/dog/${slug}/${kind}`;
 }
+
+/**
+ * A `/mating` path, with its parameters in the canonical order — `sire`, `dam`, `g` — and
+ * only those given. One builder for the dog page's link, the shell's controls and the
+ * Function's redirects, so the canonical form is stated once. Not HTML-escaped: pass it
+ * through `esc` in an attribute, where its `&` becomes `&amp;`.
+ */
+export function matingPath(p: { sire?: string | null; dam?: string | null; g?: number | null }): string {
+  const q: string[] = [];
+  if (p.sire) q.push(`sire=${encodeURIComponent(p.sire)}`);
+  if (p.dam) q.push(`dam=${encodeURIComponent(p.dam)}`);
+  if (p.g != null) q.push(`g=${p.g}`);
+  return q.length === 0 ? '/mating' : `/mating?${q.join('&')}`;
+}

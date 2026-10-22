@@ -22,7 +22,7 @@ import { renderBracket } from './bracket';
 import { esc, lines } from './escape';
 import { dogJsonLd } from './jsonld';
 import { renderPage, type PageMeta } from './layout';
-import { SITE, dogJsonUrl, dogUrl, type SiteConfig } from './site';
+import { SITE, dogJsonUrl, dogUrl, matingPath, type SiteConfig } from './site';
 import { accentFreeName } from './text';
 
 /** `24-Aug-1994`, or undefined. */
@@ -252,6 +252,19 @@ function reportLinks(payload: DogPayload): string {
   );
 }
 
+/**
+ * The way into the mating page, with this dog as one parent: the dam if it is recorded
+ * female, otherwise the sire — the sire when the sex is unknown too, since the page warns
+ * on a recorded mismatch and stays silent on a missing one. Offered on every dog, founders
+ * included: a dog with no recorded pedigree can still be bred. `nofollow`, because the
+ * page is a calculator a crawler has no business walking. Its own class, not `reports`:
+ * the report paragraph is absent where there is no pedigree, and this one never is.
+ */
+function matingLink(payload: DogPayload): string {
+  const href = payload.subject.sex === 'F' ? matingPath({ dam: payload.slug }) : matingPath({ sire: payload.slug });
+  return `<p class="mating-link"><a href="${esc(href)}" rel="nofollow">Plan a mating</a></p>`;
+}
+
 /** The pedigree bracket section (R-2.3). Always four generations, blanks and all. */
 function bracketSection(payload: DogPayload, hasPage: HasPage): string {
   const bracket = renderBracket(payload.bracket, hasPage);
@@ -260,6 +273,7 @@ function bracketSection(payload: DogPayload, hasPage: HasPage): string {
     '<h2>Pedigree</h2>',
     bracket,
     reportLinks(payload),
+    matingLink(payload),
     '</section>',
   );
 }

@@ -96,7 +96,7 @@ function notes(a: MatingAnalysis): string {
 }
 
 function ancestorRow(row: AncestorCrosses, slugs: Map<string, string>): string {
-  const sex = row.animal.sex === 'F' ? 'f' : row.animal.sex === 'M' ? 'm' : 'u';
+  const sex = row.animal.sex === 'M' ? 'M' : row.animal.sex === 'F' ? 'F' : 'U';
   const blood = row.bloodPercent == null ? '' : pct(row.bloodPercent);
   return (
     '<tr>' +

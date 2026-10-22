@@ -108,6 +108,8 @@ describe('the analysis (task 6.3)', () => {
       /<li class="grade-match"><span class="grade">match<\/span> <strong>Half-sibling cross<\/strong> — [^<]*GRAND SIRE/,
     );
     expect(html).toContain('<a href="/dog/grand-sire">GRAND SIRE</a>');
+    // The report pages' sex classes, which the stylesheet colours.
+    expect(html).toContain('<span class="sex sex-M" aria-hidden="true"></span><a href="/dog/grand-sire">');
     expect(html).toContain('<td class="crosses">2S x 2D</td>');
     expect(html).toContain('<td class="num">50.00%</td>');
     expect(html).toContain('Checked as of 22-Oct-2026: no sex, breeding-age or recessive DNA warnings.');
