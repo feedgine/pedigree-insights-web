@@ -4,7 +4,8 @@ The short version of the routine. Every command runs **in Terminal on the Mac, f
 repository root**. Background, reasons and rare cases: [`deploy-runbook.md`](deploy-runbook.md),
 section 9.
 
-Total time: about 45 minutes, most of it waiting for the upload.
+Total time: about 45 minutes, most of it waiting for the upload. The first publish with
+mating objects uploads 2.3 GB more, once; give it longer.
 
 ---
 
@@ -50,6 +51,7 @@ Read these lines. Anything unexpected → stop and ask before building.
 | `FOUNDATION LIST` | absent | A founder name matches no record: fix the name in the list or the database. |
 | `DUPLICATE NAMES` | absent | Two rows with one name — one is being skipped. |
 | `payloads written` | your edits plus their relatives | Tens of thousands → something global changed; find out what first. |
+| `mating objects written` | your edits plus their descendants (an object holds nine generations of ancestors and full-depth COI weights) | Tens of thousands → something global changed; find out what first. |
 
 ## 4. Build (5 min)
 
@@ -65,13 +67,35 @@ npm run render:site -- --payloads "$PAYLOAD_DIR" --out "$SITE_DIR" --include ind
 npm run publish:d1 -- --payloads "$PAYLOAD_DIR" --state "$PUBLISH_STATE" --out "$PAYLOAD_DIR/d1/seed.sql"
 ```
 
+Then read two lines of the extract's report:
+
+- [ ] `mating objects    written N   unchanged M` — **if you changed nothing in the master
+      since the last publish, N must be 0.** A rerun on the same master writes nothing; a
+      non-zero N there means the build is not deterministic, so stop and ask. (Two
+      expected exceptions: the first publish with mating objects writes all of them, and
+      so does a code change to the object format in `src/publish/mating.ts`.)
+- [ ] `mating size       largest … B, total … MB` — against the gates (figures measured
+      2026-10-22 on 63,778 dogs):
+
+| Gate | Limit | Measured | Read it from |
+|---|---|---|---|
+| A, storage | total ≤ 4,000 MB | 2,276.2 MB | `mating size` total |
+| C, page weight | two objects + page ≤ 2 MB, so largest < 990,000 B | 145,100 B | `mating size` largest |
+| B, browser time | worst pair ≤ 50 ms | 1.75 ms | not in the report: if `largest` has doubled (over 290,000 B), run `npx tsx tools/measure-mating.ts --source "$MASTER_DB" --state "$PUBLISH_STATE" --bench` |
+
+A gate over its limit → do not load; stop and ask.
+
 ## 5. Load the data (15–30 min)
 
 ```
 rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 rclone sync "$PAYLOAD_DIR/report" "$RCLONE_REMOTE:$R2_BUCKET/report" --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+rclone sync "$PAYLOAD_DIR/mating" "$RCLONE_REMOTE:$R2_BUCKET/mating" --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
+
+**In this order: all three `rclone sync` lines, then the D1 import, then step 6.** D1
+decides what search and `/mating` offer; a dog D1 knows before its files are in R2 is a 404.
 
 Answer `yes` to the D1 prompt. **Always `--remote`** — without it the command "works" and
 the site sees nothing.
@@ -91,6 +115,8 @@ Pages are cached, so a normal window can show the old version.
 - [ ] Search: `hovin` finds TÄHTIHOVIN.
 - [ ] Footer date on the home page is today.
 - [ ] A Foundation report says "of N foundation dogs" with the right N.
+- [ ] "Plan a mating" on a dog page, then pick the other parent: the analysis appears
+      (COI, common ancestors, bracket).
 
 ## 8. Commit (1 min)
 

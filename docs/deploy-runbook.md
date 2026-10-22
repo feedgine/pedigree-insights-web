@@ -123,6 +123,7 @@ Three outputs, three destinations:
 |---|---|---|
 | `out/dog/**` | one JSON payload per dog | R2 |
 | `out/report/**` | one JSON per dog: the Linebreeding and Foundation reports | R2 |
+| `out/mating/**` | one JSON per dog: its ancestor grid and COI weights, for `/mating` | R2 |
 | `out/d1/seed.sql` | dog index, redirects, DNA results | D1 |
 | `site/` | the indexed pages, home, robots, sitemap, llms.txt | Pages |
 
@@ -136,8 +137,17 @@ rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 rclone sync "$PAYLOAD_DIR/report" "$RCLONE_REMOTE:$R2_BUCKET/report" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+rclone sync "$PAYLOAD_DIR/mating" "$RCLONE_REMOTE:$R2_BUCKET/mating" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
+
+**Order: every `rclone sync` first, then the D1 import, then the Pages deploy (section 6).**
+D1 decides what the site offers: search lists its dogs, and `/mating` accepts a parent
+only if D1 has its row, then reads the mating object from R2. A dog that D1 knows but R2
+does not hold yet is a search result whose page is a 404, and a mating pair that is a
+404. With R2 loaded first, every row the seed adds already has its objects, and the
+deploy, which can bring a new `mating.<hash>.js`, comes last of all.
 
 The first sync uploads about 395 MB and takes a while. Later ones send only what changed.
 
@@ -147,6 +157,16 @@ times as long as the payloads did. It is one prefix of the same bucket, so no ne
 new binding. Later syncs send only the reports whose content changed; a report changes
 whenever any ancestor within twenty generations does, so a rename deep in the old lines
 touches more reports than pages.
+
+The third sync is the mating objects (added 2026-10-22), one per dog, which `/mating`
+embeds for the browser to compute from. Measured over the real master (63,778 dogs):
+**2,276.2 MB** the first time, the largest 145,100 B (KANNIBALEN'S JOHNNY B GOODE). That is
+the biggest of the three, so give the first run time. Afterwards an object changes when
+the dog's ancestry within nine generations, or its COI weights, change, so a correction
+deep in the old lines rewrites many of them, as it does the reports. Same bucket, its own
+prefix: no new store and no new binding. With all three, R2 holds about **4.4 GB** of
+its 10 GB free tier (2026-10-22: payloads 358.3 MB, reports 1,749.5 MB, mating objects
+2,276.2 MB). Gate A in the mating design caps the mating objects at 4 GB.
 
 `--transfers 32` is worth the flag: the default of 4 turns a ten-minute upload into an
 hour. Measured on the first real run: **62,469 objects, 322.7 MiB, 10m25s.**
@@ -293,8 +313,17 @@ rclone sync "$PAYLOAD_DIR/dog" "$RCLONE_REMOTE:$R2_BUCKET/dog" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 rclone sync "$PAYLOAD_DIR/report" "$RCLONE_REMOTE:$R2_BUCKET/report" \
   --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
+rclone sync "$PAYLOAD_DIR/mating" "$RCLONE_REMOTE:$R2_BUCKET/mating" \
+  --transfers 32 --checkers 32 --progress --exclude ".DS_Store"
 npx wrangler d1 execute "$D1_NAME" --remote --file="$PAYLOAD_DIR/d1/seed.sql"
 ```
+
+**Order: every `rclone sync` first, then the D1 import, then the Pages deploy (step 4 below).**
+D1 decides what the site offers: search lists its dogs, and `/mating` accepts a parent
+only if D1 has its row, then reads the mating object from R2. A dog that D1 knows but R2
+does not hold yet is a search result whose page is a 404, and a mating pair that is a
+404. With R2 loaded first, every row the seed adds already has its objects, and the
+deploy, which can bring a new `mating.<hash>.js`, comes last of all.
 
 The sync sends only what changed and deletes what left. The seed rebuilds its tables in
 full, so re-importing is always safe.
@@ -311,7 +340,9 @@ npx wrangler pages deploy "$SITE_DIR" --project-name "$PAGES_PROJECT"
 those dogs' pages come from R2 through the Function, so R2 and D1 are enough. Use
 `node tools/find-dog.mjs out "<name>"` to see which tier a dog is in. Everything else —
 a template change, a home-page change, a new migration, an indexed dog — needs the full
-sequence.
+sequence. So does any change under `src/mating/` or to the vendored modules: the build
+bundles them into `assets/mating.<hash>.js`, and the Function names that file from
+`src/generated/matingScript.ts`, so only a render and a deploy bring a new analysis live.
 
 **And anything that changes where the build writes files.** This is the third case, and
 it is easy to miss because it is neither a dog nor a template: the file layout inside
