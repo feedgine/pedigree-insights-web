@@ -155,14 +155,15 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
     // is what is missing — which is what turns a reader into someone who sends a
     // correction. Planned items carry no dates on purpose: an undated plan can stay true
     // for a year, and nothing here is a schedule the Foundation has committed to.
-    // Rewritten by the owner 2026-09-28. Review at every release.
+    // Rewritten by the owner 2026-09-28; hypothetical matings moved to "Available now"
+    // 2026-10-22. Review at every release.
     '<section>',
     '<h2>Current state</h2>',
     '<p class="note">This is the international version of the pedigree data the ' +
       'Japanese Spitz Foundation has collected over the years — thank you to everyone ' +
       'who contributed. We keep collecting information about dogs and adding more tools ' +
       'for breeders.</p>',
-    '<p class="note"><strong>Available now (September 2026):</strong></p>',
+    '<p class="note"><strong>Available now (October 2026):</strong></p>',
     '<ul class="plain">',
     '<li>Search by name.</li>',
     '<li>A page for every dog: four-generation pedigree, offspring grouped by mate, full ' +
@@ -172,17 +173,19 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
       'account for between them.</li>',
     '<li><strong>Foundation reports</strong> — which of the breed’s founding dogs stand ' +
       'behind a pedigree, and in what proportion each of them contributed.</li>',
+    '<li><strong>Hypothetical matings</strong> — choose a sire and a dam and see the ' +
+      'pedigree their puppies would have, its inbreeding coefficient, the ancestors the ' +
+      'two parents share, and a warning where both carry the same recessive DNA result.</li>',
     '</ul>',
-    '<p class="note">Links to both reports are on every dog page.</p>',
+    '<p class="note">Links to both reports are on every dog page. To plan a mating, open ' +
+      'the page of either parent and follow <em>Plan a mating</em> under its pedigree: ' +
+      'that dog is filled in, and you search for the other parent by name. The ' +
+      'calculation runs in your browser, so it needs JavaScript.</p>',
     '<p class="note"><strong>Planned:</strong></p>',
     '<ul class="plain">',
     '<li>Photographs of the dogs, once the right to publish each one has been settled.</li>',
     '<li>Catalogue pages gathering dogs by kennel, birth year, country and DNA test.</li>',
     '<li>An index of kennels by country, and of litters by year.</li>',
-    '<li><strong>Hypothetical matings</strong> — choose a sire and a dam that have never ' +
-      'been bred together and see the pedigree their puppies would have, its inbreeding ' +
-      'coefficient, and a warning where both parents carry the same recessive DNA ' +
-      'result.</li>',
     '<li><strong>DNA test reports</strong> — for a chosen test, how the whole population ' +
       'divides between clear, carrier and affected, and which dogs make up each group.</li>',
     '<li><strong>Breeder accounts</strong> — for announcing planned litters.</li>',
