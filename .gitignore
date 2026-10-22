@@ -44,3 +44,8 @@ CLAUDE.md
 # Not secrets (Cloudflare auth is still required to reach any of it), but machine-specific
 # and not worth publishing. The committed template is deploy.env.example.
 deploy.local.env
+
+# OpenSpec planning and specs — private working notes, like CLAUDE.md, never published.
+/openspec/
+# Claude Code commands and skills installed by `openspec init`.
+/.claude/
