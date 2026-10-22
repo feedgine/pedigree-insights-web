@@ -129,7 +129,7 @@ describe('the analysis (task 6.3)', () => {
     expect(html).toContain('<strong>Checks as of 22-Oct-2026</strong>');
     expect(html).toMatch(/<li>Sex mismatch — the dam &quot;MALE B&quot; is recorded as M/);
     expect(html).toContain('Litter inbreeding coefficient');
-    expect(html).toContain('class="bracket"');
+    expect(html).toContain('class="bracket gens-4"');
   });
 
   it('carrier × carrier: the 25% Affected warning, and the analysis still renders', () => {
@@ -195,7 +195,7 @@ describe('the analysis (task 6.3)', () => {
     );
     const at = [
       '<h2>Planned litter, four generations</h2>',
-      'class="bracket"',
+      'class="bracket gens-4"',
       'Litter inbreeding coefficient',
       '<li>AVK, ',
       '<strong>Checks as of',

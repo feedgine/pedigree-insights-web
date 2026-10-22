@@ -121,8 +121,8 @@ export function repeatTints(nodes: readonly BracketNode[]): Map<string, RepeatTi
  * Does this cell show titles?
  *
  * The desktop layout: **titles · name · registration · date of birth in every column
- * except the last, which drops the titles.** The deepest column is sixteen rows of a
- * fixed height, so it is the one place a third line costs legibility — and it is the
+ * except the last, which drops the titles.** The deepest column is sixteen rows of the
+ * minimum height, so it is the one place a third line costs legibility — and it is the
  * column a reader scans rather than studies.
  */
 function showsTitles(node: BracketNode, deepest: number): boolean {
@@ -246,9 +246,11 @@ export function renderBracket(
   }
 
   return (
-    `<div class="bracket-scroll"><div class="bracket" ` +
+    // `gens-N` lets print spread a four-column bracket across the page; a deeper one keeps
+    // its screen widths.
+    `<div class="bracket-scroll"><div class="bracket gens-${deepest}" ` +
     `style="grid-template-columns:${widths.join(' ')};` +
-    `grid-template-rows:auto repeat(${rows}, var(--row-h))">` +
+    `grid-template-rows:auto repeat(${rows}, minmax(var(--row-h), auto))">` +
     heads.join('') +
     cells.join('') +
     '</div></div>'

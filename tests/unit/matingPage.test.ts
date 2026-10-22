@@ -129,6 +129,13 @@ describe('the shell with both parents', () => {
   it('hides the controls and the search in print', () => {
     expect(SITE_CSS).toMatch(/@media print[\s\S]*\.mating-controls, \.mating-search, p\.mating-link \{ display: none; \}/);
   });
+
+  it('hides the depth and search forms in print, at the specificity of their screen rule', () => {
+    // The screen rule `form.mating-depth, form.mating-search { display: flex … }` outranks a
+    // class-only selector, so print must name the element too.
+    expect(SITE_CSS).toContain('form.mating-depth, form.mating-search { display: flex;');
+    expect(SITE_CSS).toMatch(/@media print[\s\S]*\n {2}form\.mating-depth, form\.mating-search \{ display: none; \}/);
+  });
 });
 
 describe('the shell with a parent to choose', () => {

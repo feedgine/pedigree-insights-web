@@ -101,9 +101,10 @@ const BRACKET_CSS = `
    same way in both.
 
    CSS Grid with explicit row spans, all computed server-side: nothing is
-   measured in the browser, so the chart is identical with scripting off. Row
-   height is fixed and columns are as wide as their own widest line, which is
-   why depth costs horizontal scrolling and never legibility. */
+   measured in the browser, so the chart is identical with scripting off. Rows
+   are --row-h at least and grow when a name wraps (minmax), so a long name in
+   the last column is never clipped; columns are as wide as their own widest
+   line, which is why depth costs horizontal scrolling and never legibility. */
 .bracket-scroll { overflow-x: auto; padding-bottom: 10px; }
 .bracket {
   --row-h: 34px;
@@ -260,14 +261,28 @@ const PRINT_CSS = `
   .cell .tt, .cell .dt { font-size: 7.5pt; }
   .site-head, .site-search, .crumbs, .site-foot .fine, .report-nav, p.reports,
   .mating-controls, .mating-search, p.mating-link { display: none; }
+  /* The forms' screen rule (form.mating-depth …) outranks the class-only one above. */
+  form.mating-depth, form.mating-search { display: none; }
   .table-scroll { overflow: visible; }
   table.report { font-size: 9pt; }
   .subject-photo, figure.photo { display: none !important; }
   body { font-size: 11pt; }
   .bracket-scroll { overflow: visible; }
   .bracket { min-width: 0; width: 100%; }
-  .cell { border-left: 0; }
-  section { break-inside: avoid; border-bottom: 0; }
+  /* Rows grow with their content, so print keeps the cells tight and gives the last
+     column the spare width: a 40-character name stays on one line and the full
+     four-generation bracket fits A4 landscape (128 mm of 186 mm, measured 2026-10-22).
+     !important because the screen widths are an inline style; scoped to four columns,
+     so a deeper bracket keeps them. */
+  .cell { border-left: 0; padding: 1px 6px; }
+  .cell .nm, .cell .tt, .cell .dt { line-height: 1.15; }
+  .bracket.gens-4 { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr) !important; }
+  section { border-bottom: 0; }
+  /* Keep whole only what must not split: the bracket, a stat list, a table row, and a
+     heading with what follows it. A whole section held together would be pushed to a
+     fresh page whenever it is taller than what is left, leaving the page before it empty. */
+  .bracket-scroll, .report-stats, tr { break-inside: avoid; }
+  h2 { break-after: avoid; }
   a { color: inherit; text-decoration: none; }
 }
 `;
