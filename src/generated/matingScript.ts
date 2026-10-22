@@ -5,4 +5,4 @@
  * `assets/mating.<content-hash>.js`; the Function that renders the shell imports this.
  * Committed, as `published.ts` is, so a fresh clone typechecks.
  */
-export const MATING_SCRIPT = '/assets/mating.812bc871a71c.js';
+export const MATING_SCRIPT = '/assets/mating.0e3c6674d6d9.js';
