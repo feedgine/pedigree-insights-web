@@ -25,7 +25,7 @@
  */
 
 import { BRACKET_GENERATIONS } from '../publish/constants';
-import type { BracketNode } from '../publish/payload';
+import type { BracketNode } from '../publish/bracketNode';
 import { formatDmy } from '../vendor/pedigree-insights/schema';
 import { esc } from './escape';
 

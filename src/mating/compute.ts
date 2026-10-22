@@ -17,7 +17,6 @@
  * @author Yuliya Malinina <julia.malinina@gmail.com>
  */
 
-import type { MatingDictEntry, MatingObject } from '../publish/mating';
 import type { Animal } from '../vendor/pedigree-insights/schema';
 import type { AnimalLookup } from '../vendor/pedigree-insights/pedigreeAlgorithm';
 import { ancestorLossPercent } from '../vendor/pedigree-insights/genetics';
@@ -35,6 +34,7 @@ import { classifyLinebreeding, type MatingClassification } from '../vendor/pedig
 import { checkMating, type MatingWarning } from '../vendor/pedigree-insights/matingChecks';
 
 import { coancestry } from './coi';
+import type { MatingDictEntry, MatingObject } from './object';
 
 const lc = (s: string): string => s.trim().toLowerCase();
 

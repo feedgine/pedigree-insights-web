@@ -47,23 +47,8 @@ export interface DogRef {
   readonly sex?: 'M' | 'F';
 }
 
-/** One box of the pedigree chart. Empty boxes are not emitted at all. */
-export interface BracketNode {
-  /** Path id: '0' is the subject, then '.S' for sire and '.D' for dam. */
-  readonly id: string;
-  readonly generation: number;
-  readonly name: string;
-  /** null when the ancestor is a name on a parent's record and nothing more. */
-  readonly slug: string | null;
-  readonly preTitle?: string;
-  readonly postTitle?: string;
-  /** Registration and date of birth: the desktop bracket shows full information in every
-   *  cell, including the deepest generation, and the web bracket matches it. */
-  readonly registration?: string;
-  readonly dob?: string;
-  /** True when this box repeats an ancestor already on the path — a true ancestry loop. */
-  readonly loop?: true;
-}
+export type { BracketNode } from './bracketNode';
+import type { BracketNode } from './bracketNode';
 
 export interface DnaResult {
   readonly test: string;

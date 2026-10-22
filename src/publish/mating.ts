@@ -42,6 +42,12 @@ import {
 import { computeContributions } from '../vendor/pedigree-insights/contribution';
 
 import { bySlug, coancestry, type WeightEntry, type Weights } from '../mating/coi';
+import {
+  BRACKET_LAST_SLOT,
+  MATING_GRID_SLOTS,
+  type MatingDictEntry,
+  type MatingObject,
+} from '../mating/object';
 import { scriptSafeJson } from '../render/escape';
 import { indexKey } from './key';
 import { stableStringify } from './payload';
@@ -206,52 +212,13 @@ export function weightVector(
 // The ancestor grid
 // ---------------------------------------------------------------------------------------
 
-/** Generations of ancestors in the grid: the litter at depth 10 is one deeper. */
-export const MATING_GRID_GENERATIONS = 9;
-
-/** Slots in the grid: the dog at 0, then 2 + 4 + … + 512 ancestors in heap order. */
-export const MATING_GRID_SLOTS = 2 ** (MATING_GRID_GENERATIONS + 1) - 1;
-
-/** Slots 1–14 are generations 1–3, the only cells the litter bracket draws. */
-const BRACKET_LAST_SLOT = 2 ** 4 - 2;
-
-/** One distinct ancestor in a dog's grid. */
-export interface MatingDictEntry {
-  readonly name: string;
-  /** null when the ancestor is a name on a parent's record and nothing more (R-2.3). */
-  readonly slug: string | null;
-  readonly sex?: 'M' | 'F';
-  /** Parent names as the (cycle-cut) record gives them, so a synthetic lookup can answer
-   *  the vendored code as the database would. Absent on a name-only entry. */
-  readonly sire?: string;
-  readonly dam?: string;
-  /** Bracket-only fields: kept only for an ancestor within generations 1–3. */
-  readonly preTitle?: string;
-  readonly postTitle?: string;
-  readonly registration?: string;
-  readonly dob?: string;
-}
-
-export interface MatingObject {
-  readonly slug: string;
-  readonly name: string;
-  readonly self: {
-    readonly sex?: 'M' | 'F';
-    readonly dob?: string;
-    readonly preTitle?: string;
-    readonly postTitle?: string;
-    readonly registration?: string;
-    readonly praRcd4C2orf71?: string;
-    readonly samsKcnj10?: string;
-  };
-  /** Broken cycle edges inside this dog's ancestry, so the page can say which. */
-  readonly cycles?: readonly CycleEdge[];
-  /** 1023 slots: slot 0 is the dog (always null, see `self`), slot i's sire at 2i+1 and
-   *  dam at 2i+2; each non-null value indexes `dict`. */
-  readonly grid: readonly (number | null)[];
-  readonly dict: readonly MatingDictEntry[];
-  readonly coi: { readonly w: Weights; readonly dropped: number };
-}
+export {
+  BRACKET_LAST_SLOT,
+  MATING_GRID_GENERATIONS,
+  MATING_GRID_SLOTS,
+  type MatingDictEntry,
+  type MatingObject,
+} from '../mating/object';
 
 /** Context needed to turn an animal into its mating object. */
 export interface MatingContext {

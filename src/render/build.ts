@@ -35,7 +35,10 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
+
+import { buildSync } from 'esbuild';
 
 import type { DogPayload } from '../publish/payload';
 import { renderDogPage } from './dogPage';
@@ -92,6 +95,40 @@ function parseArgs(argv: readonly string[]): Options {
 function writeFile(file: string, contents: string): void {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, contents);
+}
+
+/**
+ * The `/mating` page's script: `src/mating/entry.ts` and everything it imports — the
+ * vendored modules included — bundled into one minified file, named by its content hash.
+ *
+ * Rebuilt on every render from the sources `vendor:check` guards, never committed and
+ * never edited: what runs in the browser is the code the parity tests import. The hash
+ * in the name means a deploy never serves a visitor yesterday's script from cache, and a
+ * rebuild with no source change keeps the name, so Pages uploads nothing new. Any older
+ * `mating.*.js` is removed first, so the output holds exactly one.
+ *
+ * Returns the script's path on the site, for the shell to reference.
+ */
+function bundleMatingScript(out: string): string {
+  const result = buildSync({
+    entryPoints: ['src/mating/entry.ts'],
+    bundle: true,
+    minify: true,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2020',
+    write: false,
+  });
+  const code = result.outputFiles[0]!.contents;
+  const hash = createHash('sha256').update(code).digest('hex').slice(0, 12);
+  const name = `mating.${hash}.js`;
+  const dir = join(out, 'assets');
+  mkdirSync(dir, { recursive: true });
+  for (const f of readdirSync(dir)) {
+    if (/^mating\.[0-9a-f]+\.js$/.test(f) && f !== name) rmSync(join(dir, f));
+  }
+  writeFileSync(join(dir, name), code);
+  return `/assets/${name}`;
 }
 
 /** Every payload file under `<dir>/dog/<shard>/`. */
@@ -203,6 +240,25 @@ function main(): void {
     ].join('\n'),
   );
 
+  // The mating script, and its hashed name as a source file the Functions bundle imports
+  // — the same arrangement as `published.ts` and for the same reason: the `/mating` shell
+  // is rendered by a Function, which cannot list the assets directory to find the name.
+  const matingScript = bundleMatingScript(opts.out);
+  writeFile(
+    'src/generated/matingScript.ts',
+    [
+      '/**',
+      ' * Where the `/mating` page\'s script is. **Generated — do not edit by hand.**',
+      ' *',
+      ' * Written by `npm run render:site`, which bundles `src/mating/entry.ts` into',
+      ' * `assets/mating.<content-hash>.js`; the Function that renders the shell imports this.',
+      ' * Committed, as `published.ts` is, so a fresh clone typechecks.',
+      ' */',
+      `export const MATING_SCRIPT = '${matingScript}';`,
+      '',
+    ].join('\n'),
+  );
+
   /** Every page this run produced, so the build says what it built. */
   const pages: string[] = [];
   const files = payloadFiles(opts.payloads);
@@ -293,6 +349,7 @@ function main(): void {
         `largest ${largest} B, total ${(total / 1e6).toFixed(1)} MB`,
       pad('files') + (written + 1) + '  of the 20,000 Cloudflare Pages allows',
       pad('linkable pages') + present.size + '  links to any other dog render as plain text',
+      pad('mating script') + matingScript,
       pad('sitemap') + indexedSlugs.length + '  indexed URLs listed',
       pad('list of pages') + join(opts.out, 'pages.txt'),
       opts.clean ? pad('cleaned') + 'previous pages removed before writing' : '',

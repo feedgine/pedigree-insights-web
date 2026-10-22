@@ -1,0 +1,17 @@
+{
+  "//": [
+    "The browser bundle, src/mating/, typechecked as what it is: DOM, and no Node. Its own",
+    "pass for the reason tsconfig.functions.json has one — the main config loads Node's",
+    "types, so a Node API in a module the bundle pulls in would typecheck there and fail in",
+    "a visitor's browser. Every file the bundle imports, vendored modules included, is",
+    "checked here through the import graph. `exclude` is reset because the base config",
+    "excludes entry.ts, the one file only this pass can check."
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "include": ["src/mating"],
+  "exclude": []
+}

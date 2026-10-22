@@ -6,7 +6,9 @@
     "drift the vendoring exists to prevent. If a flag is worth adding, add it in",
     "pedigree-insights first, fix the source, then re-sync.",
     "Differences from the source config are only those that follow from this being a Node",
-    "and Workers project rather than an Electron/React one: no DOM lib, no jsx."
+    "and Workers project rather than an Electron/React one: no DOM lib, no jsx.",
+    "src/mating/entry.ts is the one file that needs the DOM; it is checked by",
+    "tsconfig.mating.json instead, with the rest of the browser bundle."
   ],
   "compilerOptions": {
     "target": "ES2022",
@@ -28,5 +30,6 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src", "tests", "vitest.config.ts"]
+  "include": ["src", "tests", "vitest.config.ts"],
+  "exclude": ["src/mating/entry.ts"]
 }
