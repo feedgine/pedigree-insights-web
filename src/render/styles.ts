@@ -28,6 +28,12 @@ const BASE_CSS = `
   --radius: 3px;
 }
 
+/* Text for screen readers only — the search box's label. In the stylesheet, not inline
+   in each page's <head>: the CSP's style-src 'self' blocks an inline <style> element
+   (only style ATTRIBUTES are allowed, for the bracket), so the inline copy never
+   applied and the label showed on screen. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 * { box-sizing: border-box; }
 
 /* One appearance for everyone, light, whatever the reader's system is set to (owner

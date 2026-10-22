@@ -138,7 +138,6 @@ export function renderPage(meta: PageMeta, body: string, site: SiteConfig = SITE
     '<html lang="en">',
     '<head>',
     head(meta, site),
-    '<style>.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>',
     '</head>',
     '<body>',
     header(meta, site),

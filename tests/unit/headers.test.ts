@@ -79,3 +79,14 @@ describe('the /mating policy (task 7.3)', () => {
     expect(route).not.toContain('SECURITY_HEADERS');
   });
 });
+
+describe('no inline style element under style-src self', () => {
+  it('the page shell carries none, and site.css carries .visually-hidden', async () => {
+    const { renderPage } = await import('../../src/render/layout.ts');
+    const { SITE_CSS } = await import('../../src/render/styles.ts');
+    const html = renderPage({ title: 't', canonical: 'https://x.test/', noindex: false, crumbs: [] }, '<p>body</p>');
+    expect(html).not.toMatch(/<style\b/);
+    expect(html).toContain('class="visually-hidden"');
+    expect(SITE_CSS).toContain('.visually-hidden {');
+  });
+});
