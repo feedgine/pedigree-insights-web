@@ -183,7 +183,7 @@ the master, and can dump one dog's report for inspection.
 Every dog also gets a **mating object** — `out/mating/<shard>/<slug>.json`, sharded like
 the payloads and reports. The `/mating?sire=…&dam=…` page embeds the two parents' objects
 verbatim and the visitor's browser computes the analysis from them, so the server never
-walks or parses a pedigree (design: `openspec/changes/add-hypothetical-mating/design.md`).
+walks or parses a pedigree (how and why: [`hypothetical-mating.md`](hypothetical-mating.md)).
 Built by `src/publish/mating.ts`.
 
 ```
@@ -220,11 +220,3 @@ Built by `src/publish/mating.ts`.
   because a truncated vector is a wrong COI with nothing on the page to say so.
 - **Own manifest** (`mating` in `state.json`), own written/unchanged counts. An object
   changes when anything in the dog's full ancestry does.
-
-Measured on the master, 2026-10-22 (`tools/measure-mating.ts`): 63,778 objects,
-**2.276 GB** in total (gate A ≤ 4 GB); object size p50 27.8 KiB, p99 112.4 KiB, largest
-141.7 KiB; weight vector p50 168 entries, largest 1,459; deepest recorded line 40
-generations, none at the cap; no cycles. The F pass takes 28.5 s and the objects 62.7 s.
-The worst pair's parse + analysis at depth 10 takes 1.75 ms median in Node (gate B ≤ 50 ms)
-and its page is about 0.31 MB (gate C ≤ 2 MB). No pruning was needed (`dropped` is 0
-everywhere).
