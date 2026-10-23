@@ -183,7 +183,7 @@ the master, and can dump one dog's report for inspection.
 Every dog also gets a **mating object** — `out/mating/<shard>/<slug>.json`, sharded like
 the payloads and reports. The `/mating?sire=…&dam=…` page embeds the two parents' objects
 verbatim and the visitor's browser computes the analysis from them, so the server never
-walks or parses a pedigree (how and why: [`hypothetical-mating.md`](hypothetical-mating.md)).
+walks or parses a pedigree (how and why: [`hypothetical-mating-design.md`](hypothetical-mating-design.md)).
 Built by `src/publish/mating.ts`.
 
 ```

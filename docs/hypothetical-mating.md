@@ -1,195 +1,249 @@
-# Hypothetical mating
+# Hypothetical mating specification
 
-How `/mating` works, and why it is built the way it is. Requirements are tracked as
-R-2.11; this file is the companion document — the *how*. The stored mating object is
-described field by field in `publish-pipeline.md` ("The mating objects").
+What `/mating` does and how it behaves. Each requirement and scenario has a permanent ID
+(`MAT-03`, `MAT-03.2`); code and later changes cite these IDs. IDs are never reused or
+renumbered. How it is built is described in [`hypothetical-mating-design.md`](hypothetical-mating-design.md).
 
 `[DRAFT — requires Yuliya's review]`
 
-## What the page is
+## Purpose
 
-`/mating?sire=<slug>&dam=<slug>&g=<n>` previews a litter that does not exist yet: both
-parents, linked to their pages; the planned litter's four-generation bracket; and the
-desktop's Hypothetical Mating analysis — litter COI, litter AVK at depth `g` (3–10,
-default 5), the common ancestors with their cross notation and Blood %, the line-breeding
-notes and the warn-only checks. It is reached by "Plan a mating" under every dog's
-bracket, which fills in one parent; a server-rendered search fills in the other.
+Lets anyone preview a planned dam × sire litter from the published catalogue. The preview
+gives the same COI, common ancestors, line-breeding notes and warnings as the desktop's
+Hypothetical Mating tab. The server only delivers data; the analysis runs in the visitor's
+browser, so the page fits the Cloudflare free tier and no pedigree is walked at request time.
 
-It is public and not indexed: `Disallow: /mating` in `robots.txt`, `noindex`, every link
-to it `rel="nofollow"`, and no pair in any sitemap. There are far too many pairs to be
-worth crawling, and none of them is a published record.
+## Requirements
 
-## What is reused
+### Requirement: MAT-01 Mating page address
+The site SHALL serve a mating preview at `/mating?sire=<slug>&dam=<slug>&g=<n>`. `g` is the
+analysis depth, clamped to 3–10 and defaulting to 5 as on the desktop. The URL SHALL be
+canonical: a recognised parameter in a different form SHALL get a 301 to the canonical URL.
 
-Nothing genetic is written here. The desktop's own modules are vendored and run unchanged:
+#### Scenario: MAT-01.1 Both parents given
+- **WHEN** a visitor opens `/mating?sire=a&dam=b&g=6` and both slugs are published dogs
+- **THEN** the page returns 200 with the analysis of the litter of `a` × `b` at 6 generations
 
-- `hypotheticalMating.ts` — `makeMatingLookup`, which presents the planned litter as one
-  virtual dog with the chosen sire and dam;
-- `linebreeding.ts` — `analyzeLinebreeding` and `ancestorLossPercent`, for the common
-  ancestors and AVK;
-- `matingClassifier.ts` — `classifyLinebreeding`, for the line-breeding notes;
-- `matingChecks.ts` — `checkMating`, for the warnings.
+#### Scenario: MAT-01.2 Depth out of range
+- **WHEN** a visitor opens `/mating?sire=a&dam=b&g=14`
+- **THEN** the response is a 301 to `/mating?sire=a&dam=b&g=10`
 
-The desktop's `buildHypotheticalMating` is used only in tests, as the oracle that the web
-result is compared against. The bracket is the dog page's own (`src/render/bracket.ts`),
-so the repeated-ancestor shading marks shared ancestors with no new code.
+#### Scenario: MAT-01.3 Depth omitted
+- **WHEN** a visitor opens `/mating?sire=a&dam=b`
+- **THEN** the analysis is shown at 5 generations
 
-## Where the analysis runs, and why
+#### Scenario: MAT-01.4 Unknown slug
+- **WHEN** a parent slug matches no published dog and no redirect row
+- **THEN** the page returns 404 with the site's not-found page
 
-**In the visitor's browser.** The Function (`functions/mating.ts`) does only I/O: it
-canonicalises the parameters, reads both parents from D1 in one indexed query, fetches
-both mating objects from R2, and returns an HTML shell with the two objects embedded as
-`<script type="application/json">` blocks and the request's UTC date as `asOf`. A static
-script then reads the blocks, computes, and inserts the analysis.
+### Requirement: MAT-02 Mating URLs survive renames
+A parent slug that has a row in the redirect table SHALL be answered with a 301 to the same
+mating URL carrying the new slug. A mating URL that has been shared keeps working after a
+rename or a merge, as dog and report URLs do.
 
-The alternatives were worse:
+#### Scenario: MAT-02.1 Sire renamed
+- **WHEN** `/mating?sire=old&dam=b` is requested and the redirect table maps `old` to `new`
+- **THEN** the response is a 301 to `/mating?sire=new&dam=b` (depth parameter preserved)
 
-- **Compute on the server.** That is a pedigree walk at request time, which the site's
-  design rules out, and the deepest pairs would run up against the platform's per-request CPU
-  limit — the visitor would see an error page instead of an analysis.
-- **A JSON API that the script fetches.** Three Function invocations per view instead of
-  one, against a daily request cap shared with the dog pages, and a `connect-src` the site
-  otherwise never needs.
-- **Precompute every pair.** The number of pairs is the square of the catalogue.
+### Requirement: MAT-03 Analysis contents
+The page SHALL show both parents, linked to their dog pages. With scripting enabled, it SHALL
+also show the litter COI, the litter AVK at the chosen depth, the common ancestors (name,
+cross notation, Blood %), the line-breeding notes and the warn-only checks. The COI SHALL be
+labelled "full-depth value", the other values with the depth used.
 
-The consequence is that the analysis needs JavaScript. The no-JavaScript rule governs
-published content — dog pages, reports, home, search — and all of it stays script-free.
-`/mating` is a calculator: its result is computed, never published. With scripting off it
-still shows both parents, the controls, and the line "The analysis is calculated in your
-browser and needs JavaScript." Parent search, swap, replace and depth are plain links and
-GET forms, so choosing a pair never needs a script.
+#### Scenario: MAT-03.1 Common ancestor listed
+- **WHEN** an ancestor appears at least twice in the planned litter's pedigree within the chosen depth
+- **THEN** it is listed with its desktop-format notation (for example `2S x 3D`) and its Blood %, ranked by Blood %
 
-## The litter COI: A = T·D·Tᵀ
+#### Scenario: MAT-03.2 Outcross note
+- **WHEN** no ancestor appears at least twice in the planned litter's pedigree within the chosen depth, or the closest repeated ancestor is at least 5 generations back
+- **THEN** the page shows the outcross note with the litter COI. A repeat on one parent's side alone counts as a repeat, so two parents with no shared ancestor can still get no outcross note
 
-The desktop computes the litter COI with a Meuwissen–Luo pass over the litter's whole
-subpedigree. The browser cannot hold that subpedigree, so the web uses the decomposition
-that Meuwissen–Luo itself rests on.
+### Requirement: MAT-04 AVK and positions
+Beside the AVK, the page SHALL show the number of different dogs and the possible
+positions, and the number of positions holding a recorded dog out of those possible.
 
-The numerator relationship matrix factors as **A = T·D·Tᵀ**, where `T_Xk` is Wright's
-contribution of ancestor `k` to dog `X` (with `T_XX = 1`) and `D_k` is `k`'s
-Mendelian-sampling variance (the `mendelian()` rule in the vendored `genetics.ts`). So the
-coancestry of sire `S` and dam `D` is
+#### Scenario: MAT-04.1 AVK and positions wording
+- **WHEN** the analysis renders at depth `g`, with `P = 2^(g+1) − 2`
+- **THEN** it shows "AVK, g generations: X% — U different dogs in P positions (100% = every position filled by a different dog)" and "Ancestor positions recorded: R of P", where X, U and R are the desktop's AVK, unique-ancestor count and total crosses, and it shows no "Total crosses walked" line
 
-```
-a(S, D) = Σ_k T_Sk · D_k · T_Dk        F_litter = ½ · a(S, D)
-```
+### Requirement: MAT-05 Reading order
+The page SHALL present the analysis in this order: the controls (swap where shown, change
+sire, change dam); the litter bracket; the COI and AVK; the warnings; the line-breeding
+notes; and the common-ancestor table.
 
-Each mating object stores `w_Xk = T_Xk · √D_k`, sorted by slug. The litter COI is then
-`½ Σ w_Sk · w_Dk` — a merge join of two sorted lists, linear in their length.
-`src/mating/coi.ts` holds that one function, and both the publish and the browser call it.
+#### Scenario: MAT-05.1 Bracket before the numbers
+- **WHEN** the analysis renders with scripting enabled
+- **THEN** the bracket headed "Planned litter, four generations" follows the controls and precedes the COI, and the common-ancestor table comes after the notes
 
-`D_k` depends on the inbreeding of `k`'s parents. The publish gets every dog's own `F`
-from the diagonal of the same identity, `‖w_X‖² = a(X, X) = 1 + F_X`, in one
-parents-first pass: a dog's vector needs only the `D` of itself and its ancestors, all of
-which come earlier in the order. A test also asserts `F_X = ½ Σ w_sire · w_dam` for every
-dog with both parents, so the diagonal form and the sire × dam form cannot drift apart.
+### Requirement: MAT-06 Numbers match the desktop
+For the same source data, the litter COI, AVK, common-ancestor rows (crosses, notation,
+Blood %), classification notes and warnings SHALL equal the desktop Hypothetical Mating
+output at displayed precision. A disagreement is a defect, not a variant.
 
-This is the same quantity, not an approximation. The parity tests compare it with the
-vendored `createGeneticsEngine().coancestry` and with `buildHypotheticalMating().litterCoi`
-on synthetic pedigrees built to be awkward: deep line-breeding, half- and full-sibling
-pairs, backcrosses, one-parent dogs, name-only ancestors and a cycle.
+#### Scenario: MAT-06.1 Line-bred fixture
+- **WHEN** the web analysis and the vendored desktop analysis are run on the same synthetic line-bred pedigree
+- **THEN** the litter COI agrees within 1e-9 (as a fraction) and every other field is identical, using the same compute module the browser bundle is built from
 
-The litter COI is a full-depth value, so the page labels it that way; AVK and the common
-ancestors are labelled with the depth used.
+#### Scenario: MAT-06.2 Pedigree with a cycle
+- **WHEN** the source data contains a dog within its own ancestry
+- **THEN** the cycle edge is treated as unrecorded, as in the reports, the page says which edge was broken, and the page still renders
 
-## The grid and the dict
+### Requirement: MAT-07 Line-breeding notes are never claims
+Classification output SHALL be presented as notes graded `match` or `possible`, exactly as
+the desktop grades them. Methods the desktop does not assert (Oppenheimer, clan/quad,
+three-line rotation) SHALL NOT be shown as matches.
 
-COI needs only the weight vectors. Everything else — the common ancestors, notation,
-Blood %, AVK, the notes and the bracket — comes from the vendored path-enumerating walk,
-and that walk needs real paths. So each object also carries the dog's ancestry as a
-**grid**: 1,023 slots in heap order, slot `i`'s sire at `2i+1` and dam at `2i+2`, nine
-generations of ancestors. Nine, because the litter at depth 10 is one generation deeper
-than its parents: 2 + 2 × 1,022 = 2,046 litter positions.
+#### Scenario: MAT-07.1 Half-sibling cross
+- **WHEN** the chosen dam and sire share exactly one parent
+- **THEN** the page shows the "Half-sibling cross" note graded `match`, naming the shared parent
 
-Each grid value indexes a **dict** of the ancestors, and each dict entry keeps its own
-parents' names. From the two objects `src/mating/compute.ts` builds a synthetic
-`AnimalLookup` that answers the vendored code exactly as the database would within those
-nine generations. A name with no record ends its line, as it does on the dog page and on
-the desktop. Cycles are cut once at publish, as for the reports, and a cut edge met inside
-either grid is listed on the page.
+### Requirement: MAT-08 Checks warn and never block
+Sex, breeding-age and recessive-DNA checks SHALL be shown as warnings and SHALL NOT prevent
+the analysis from rendering. Ages SHALL be computed as of the request date (UTC), and the
+page SHALL state that date. A missing sex, date of birth or DNA result SHALL raise no warning.
 
-**Escaping.** Objects are serialised with `<`, `>`, U+2028 and U+2029 written as `\u`
-sequences — the rule the JSON-LD already follows (`scriptSafeJson` in
-`src/render/escape.ts`). The Function places the stored bytes in the page without parsing
-or re-escaping them, and no data value can close its `<script>` block.
+#### Scenario: MAT-08.1 Both parents carriers
+- **WHEN** both parents have a published `PRA-rcd4-C2orf71` result that reads as Carrier
+- **THEN** the page warns that about 25% of the litter could be Affected, and still shows the full analysis
 
-## Budgets and pruning
+#### Scenario: MAT-08.2 Two males chosen
+- **WHEN** the dog given as `dam` is recorded as male
+- **THEN** the page shows a sex-mismatch warning and still renders the analysis
 
-Three budgets were set before anything was uploaded, and measured against the real
-catalogue with `tools/measure-mating.ts`:
+### Requirement: MAT-09 Litter bracket
+With scripting enabled, the page SHALL draw a four-generation bracket of the planned litter
+(parents, then three generations behind each), with the dog-page bracket's template, cell
+content and repeated-ancestor shading, headed "Planned litter, four generations" (its place
+on the page: MAT-05). The litter itself SHALL NOT be a link. Cells with no record SHALL be
+blank, and ancestors without a page SHALL be plain text.
 
-- **A — storage:** all mating objects together ≤ 4 GB, so R2 stays well inside its free
-  10 GB alongside the payloads and reports.
-- **B — browser compute:** parse plus analysis for the worst pair at depth 10 ≤ 50 ms
-  median in Node, as a stand-in for a phone several times slower.
-- **C — page weight:** the worst pair's HTML, both objects embedded, ≤ 2 MB uncompressed.
+#### Scenario: MAT-09.1 Shared grandparent
+- **WHEN** the sire and dam have a parent in common
+- **THEN** that ancestor appears on both halves of the bracket and both cells carry the repeated-ancestor shading
 
-If a budget had failed, the plan was to prune each weight vector smallest-entry first
-while the pruned mass `dropped = Σ w²` stays ≤ 6e-10. Since `‖w‖² = 1 + F ≤ 2`,
-Cauchy–Schwarz bounds the COI error by `½(√dropped_S + √dropped_D)·√2`, below half a unit
-of the displayed 0.01 %. All three budgets passed, so the publish writes exact vectors and
-`dropped` is always 0. The browser still computes the bound, and prints the COI with its
-± bound if a nonzero `dropped` ever appears.
+### Requirement: MAT-10 Plan a mating link — moved to DOG-23
+Retired, ID kept. The dog page's "Plan a mating" link SHALL be specified once, in DOG-23
+of the `dog-page` capability; this capability specifies only
+what `/mating` does with the parent the link fills.
 
-The publish **fails** if any pedigree reaches the 64-generation contribution cap: a
-truncated vector would be a wrong COI with nothing on the page to say so.
+#### Scenario: MAT-10.1 Arriving from a bitch's page
+- **WHEN** a visitor arrives at `/mating?dam=<her slug>` by the link DOG-23 specifies
+- **THEN** the page shows her as the dam and a search box for the sire
 
-## The bundle
+### Requirement: MAT-11 Parent search without JavaScript
+With a parent missing, the page SHALL show a GET name search for it, with server-rendered
+results linking to the completed URL. Swap, replace and depth controls SHALL be plain links
+or GET forms.
 
-`src/mating/entry.ts` is the bundle's entry: it reads the two data blocks and `asOf`,
-calls `computeMating`, then `renderMatingAnalysis`, and inserts the HTML into
-`#mating-analysis`. It makes no network request.
+#### Scenario: MAT-11.1 Picking the sire from results
+- **WHEN** the visitor searches for a sire by name with scripting disabled
+- **THEN** each result is a link to `/mating?sire=<result>&dam=<her slug>`, and following it shows the analysis
 
-`npm run render:site` bundles it with esbuild (ES2020, minified, one file) into
-`site/assets/mating.<content-hash>.js` and writes the hashed name into the shell, so a new
-build never meets a stale cached script. The bundle is build output under the git-ignored
-`site/`: never committed, never edited by hand, always rebuilt from the vendored sources
-that `vendor:check` guards. The parity tests import the same `src/mating/compute.ts`
-the bundle is built from, and a separate typecheck pass compiles `src/mating/` against the
-DOM library with no Node types, so a Node API cannot slip into the browser.
+#### Scenario: MAT-11.2 Same dog twice
+- **WHEN** the same slug is given as both sire and dam
+- **THEN** the page explains that the two parents must differ and offers the search for the other parent, without computing an analysis
 
-**Script policy.** `/mating` alone sends `script-src 'self'`, set in the Function from
-`src/render/headers.ts`; every other route keeps `script-src 'none'`, and a test asserts
-that. `default-src 'none'` stays, so `connect-src` stays closed: the page could not fetch
-anything even if it tried. The data blocks are `application/json`, which `script-src`
-does not govern.
+### Requirement: MAT-12 Swap only on a sex mismatch
+The swap control SHALL be shown only when the sire is not recorded as male or the dam is
+not recorded as female (unknown sex counts as not matching); otherwise only "Change sire"
+and "Change dam" are offered.
 
-## The request
+#### Scenario: MAT-12.1 Correctly sexed pair
+- **WHEN** the sire is recorded as male and the dam as female
+- **THEN** the controls show "Change sire" and "Change dam" and no swap link
 
-One request costs one Function invocation, one D1 query, and two R2 reads. A slug that
-is not `^[a-z0-9-]+$` is a 404 before any read. A parent missing from D1 gets one lookup
-in the redirect table: a 301 to the current mating URL on a hit, a 404 otherwise — so a
-shared mating URL survives a rename. A non-canonical but recognised URL (depth out of
-range, an old slug) gets a single 301 to the canonical form. The `etag` combines both
-objects' etags with `asOf`, because the age warnings change with the date.
+#### Scenario: MAT-12.2 Parent of unknown or wrong sex
+- **WHEN** either parent's sex is unrecorded, or the dog given as `dam` is recorded as male (or the `sire` as female)
+- **THEN** the controls also show the swap link
 
-## What differs from the desktop
+### Requirement: MAT-13 Public but not indexed
+Mating pages SHALL be public, SHALL carry `noindex, follow`, SHALL be disallowed for `/mating`
+in `robots.txt`, and every link to them SHALL carry `rel="nofollow"`. They SHALL NOT appear in
+the sitemap.
 
-- **The bracket is four generations**, the dog page's, not the desktop's chart. The
-  analysis still runs to depth 10.
-- **Print, not export.** There is no PNG or PDF file: the browser's print gives the
-  printout, and the print stylesheet hides the controls. No photograph appears in it.
-- **It needs JavaScript** for the analysis (see above).
-- **Ages are as of the request date (UTC)**, set by the server and printed on the page,
-  so the visitor's clock does not matter.
-- **AVK depth is stated.** The page labels AVK with the depth used; compare like with like
-  when checking a number against the desktop.
+#### Scenario: MAT-13.1 Crawler reads robots.txt
+- **WHEN** `robots.txt` is fetched
+- **THEN** it contains `Disallow: /mating`
 
-Every number is otherwise the desktop's: a web value that disagrees with the desktop at
-the same depth is a defect, not a variant.
+### Requirement: MAT-14 Analysis runs in the browser
+The server SHALL NOT parse, combine or walk pedigree data for `/mating`. The Function SHALL
+embed both parents' stored mating objects byte-for-byte as `<script type="application/json">`
+data blocks, together with the request's UTC date, and a static script SHALL compute and
+render the analysis from them. The script SHALL be built from the vendored modules on every
+build and SHALL NOT fetch anything.
 
-## Reading the code
+#### Scenario: MAT-14.1 Server does not parse the objects
+- **WHEN** a valid mating page is served
+- **THEN** the two data blocks are byte-identical to the stored R2 objects for the two parents
 
-| File | What it does |
-|---|---|
-| `src/publish/mating.ts` | builds one mating object per dog at publish |
-| `src/mating/object.ts` | the object's type |
-| `src/mating/coi.ts` | the coancestry merge join, shared by publish and browser |
-| `src/mating/compute.ts` | synthetic lookup + the vendored analysis; pure, no DOM, no Node |
-| `src/mating/render.ts` | the analysis as an HTML string |
-| `src/mating/bracket.ts` | the litter's `BracketNode[]` for the shared bracket |
-| `src/mating/entry.ts` | the bundle entry |
-| `src/render/matingPage.ts` | the server-rendered shell |
-| `functions/mating.ts` | the Function: parameters, D1, R2, headers |
-| `tests/unit/matingCompute.test.ts` | parity with `buildHypotheticalMating` at depths 3, 5, 10 |
-| `tests/unit/matingCoi.test.ts` | parity of the COI with the vendored genetics engine |
+#### Scenario: MAT-14.2 Script makes no requests
+- **WHEN** the analysis renders in a browser
+- **THEN** the only network requests are for the page and its static assets
+
+### Requirement: MAT-15 Page without JavaScript
+With scripting disabled, the page SHALL still show both parents (linked), the depth,
+swap and change controls, and the note "The analysis is calculated in your browser and needs
+JavaScript." It SHALL NOT show a partial or empty analysis. Dog pages, report pages, the home
+page and search SHALL remain complete without scripts.
+
+#### Scenario: MAT-15.1 Scripting off
+- **WHEN** a visitor opens a valid mating URL with scripting disabled
+- **THEN** the page shows both parents, the controls and the JavaScript note, and no COI, common-ancestor list or bracket
+
+### Requirement: MAT-16 Script policy scoped to the mating page
+Responses for `/mating` SHALL carry the site CSP with `script-src 'self'` in place of
+`script-src 'none'`, and SHALL keep `default-src 'none'` so `connect-src` stays closed. Every
+other response SHALL keep `script-src 'none'`.
+
+#### Scenario: MAT-16.1 Mating page header
+- **WHEN** `/mating?sire=a&dam=b` is requested
+- **THEN** its `content-security-policy` contains `script-src 'self'` and `default-src 'none'`, and no `connect-src` source
+
+#### Scenario: MAT-16.2 Other pages unchanged
+- **WHEN** a dog page, a report page, `/search` or the home page is requested
+- **THEN** its `content-security-policy` contains `script-src 'none'`
+
+### Requirement: MAT-17 Embedded data cannot break the page
+Mating objects SHALL be stored with `<`, `>`, U+2028 and U+2029 escaped as `\u` sequences,
+so that embedding them verbatim can never close their `<script>` block. The browser SHALL
+escape every value it renders.
+
+#### Scenario: MAT-17.1 Name containing a closing tag
+- **WHEN** an ancestor's name contains `</script>`
+- **THEN** the stored object contains `\u003c/script\u003e`, the page structure is intact, and the name renders as text
+
+### Requirement: MAT-18 Free-tier request budget
+Serving a mating page with two valid canonical slugs SHALL cost one Function invocation, at
+most one D1 query (plus one redirect lookup per parent only on a miss) and at most two R2
+reads, with no pedigree computation on the server. The analysis for the most demanding pair
+SHALL stay within the compute-time and page-size budgets set for it.
+
+#### Scenario: MAT-18.1 Most demanding pair
+- **WHEN** the two dogs with the largest mating objects are paired at depth 10
+- **THEN** the page size and the measured compute time stay within those budgets, and the server issues no reads beyond the budget
+
+#### Scenario: MAT-18.2 Search for the missing parent
+- **WHEN** a name search is made from the mating page
+- **THEN** it uses the same indexed D1 query as `/search`, with the same minimum-length refusal and paging limits
+
+### Requirement: MAT-19 Published data only
+A mating object SHALL contain only fields already on the public whitelist. An analysis and
+its printout SHALL contain no photograph. The master database SHALL remain byte-identical
+after a publish that writes mating objects.
+
+#### Scenario: MAT-19.1 Excluded field in source
+- **WHEN** a source dog has `Owner` and `Microchip` values
+- **THEN** neither value appears in that dog's mating object nor in any mating page
+
+#### Scenario: MAT-19.2 Printing
+- **WHEN** a visitor prints a mating page
+- **THEN** the printout contains the analysis and bracket without the search and navigation controls, and no image of a dog
+
+### Requirement: MAT-20 Incremental publish of mating objects
+Mating objects SHALL be content-hashed and written only when their content changes. A
+republish from an unchanged master SHALL write zero mating objects.
+
+#### Scenario: MAT-20.1 Second run on unchanged master
+- **WHEN** the publish is run twice in a row on the same master
+- **THEN** the second run reports 0 mating objects written
