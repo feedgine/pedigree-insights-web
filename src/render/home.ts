@@ -191,6 +191,24 @@ export function renderHome(stats: CatalogueStats, site: SiteConfig = SITE): stri
     '<li><strong>Breeder accounts</strong> — for announcing planned litters.</li>',
     '</ul>',
     '</section>',
+    // Named thanks to the most active contributors, wording and order set by the owner
+    // 2026-11-02. Review at every release, alongside "Current state".
+    '<section>',
+    '<h2>Thank you</h2>',
+    '<p class="note">To the most active contributors:</p>',
+    '<ul class="plain">',
+    '<li><strong>Kate Pinker</strong> (kennel Maemuki)</li>',
+    '<li><strong>Britta Schweikl</strong> (kennel Hausruckhöhe)</li>',
+    '<li><strong>Laila Bendixen</strong> (kennel Shinbi)</li>',
+    '<li><strong>Anne Kirton</strong> (Secretary of the UK Japanese Spitz Club and Breed ' +
+      'Rescue Coordinator)</li>',
+    '<li><strong>Mie Fujisawa</strong> (Japanese Spitz enthusiast)</li>',
+    '<li><strong>Mamiya Yayoi</strong> (Japanese Spitz enthusiast)</li>',
+    '<li><strong>Songhyeon Kim</strong> (kennel Kissablanc)</li>',
+    '</ul>',
+    '<p class="note">And to everyone else who has sent pedigree information or helped ' +
+      'correct the records.</p>',
+    '</section>',
   ].join('\n');
 
   return renderPage(
